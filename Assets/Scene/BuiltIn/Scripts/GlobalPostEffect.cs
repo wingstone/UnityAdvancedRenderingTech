@@ -39,12 +39,11 @@ public class GlobalPostEffect : MonoBehaviour
 
     private void OnPreRender()
     {
-        EndRender();
-        Setting();
-        Render();
+        UpdateRender();
     }
 
-    private void OnPostRender() {
+    private void OnPostRender()
+    {
         // reset projection
         _Camera.ResetProjectionMatrix();
     }
@@ -52,6 +51,7 @@ public class GlobalPostEffect : MonoBehaviour
     private void OnDisable()
     {
         EndRender();
+        _Camera.depthTextureMode = DepthTextureMode.None;
     }
 
     //=====method
@@ -80,7 +80,6 @@ public class GlobalPostEffect : MonoBehaviour
     {
         Matrix4x4 cameraProj;
         jitter = GenerateRandomOffset();
-        jitter *= jitterSpread;
 
         if (jitteredMatrixFunc != null)
         {
@@ -165,8 +164,6 @@ public class GlobalPostEffect : MonoBehaviour
             _TaaMat = new Material(taa);
             _TaaMat.hideFlags = HideFlags.HideAndDontSave;
         }
-
-        ConfigureJitteredProjectionMatrix();
     }
 
     private void Render()
@@ -210,16 +207,29 @@ public class GlobalPostEffect : MonoBehaviour
         _Camera.AddCommandBuffer(CameraEvent.BeforeImageEffects, _CommandBuffer);
     }
 
+    private void UpdateRender()
+    {
+        if (_CommandBuffer != null)
+            _Camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffects, _CommandBuffer);
+
+        Setting();
+        Render();
+    }
+
     private void EndRender()
     {
         if (_CommandBuffer != null)
             _Camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffects, _CommandBuffer);
+
+        for (int i = 0; i < _HistoryRT.Length; i++)
+        {
+            if (_HistoryRT[i] != null)
+                RenderTexture.ReleaseTemporary(_HistoryRT[i]);
+            _HistoryRT[i] = null;
+        }
     }
 
     //===data
-    [Range(0.1f, 1f)]
-    public float jitterSpread = 0.75f;
-
     [Range(0f, 3f)]
     public float sharpness = 0.25f;
     [Range(0f, 0.99f)]

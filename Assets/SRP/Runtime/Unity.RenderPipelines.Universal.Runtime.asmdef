@@ -2,7 +2,8 @@
     "name": "Unity.RenderPipelines.Universal.Runtime",
     "references": [
         "GUID:df380645f10b7bc4b97d4f5eb6303d95",
-        "GUID:ab67fb10353d84448ac887a7367cbda8"
+        "GUID:ab67fb10353d84448ac887a7367cbda8",
+        "GUID:d60799ab2a985554ea1a39cd38695018"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

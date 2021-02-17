@@ -144,6 +144,17 @@
                 #endif
             }
 
+            // todo add tonemap
+            float3 ToneMap(float3 color)
+            {
+                return color / (1 + Luminance(color));
+            }
+
+            float3 UnToneMap(float3 color)
+            {
+                return color / (1 - Luminance(color));
+            }
+
             // https://software.intel.com/en-us/node/503873
             float3 RGB_YCoCg(float3 c)
             {
@@ -219,6 +230,31 @@
                 return cent + r;
                 */
             }
+
+            float4 VariancesClip(float4 color, float4 history, float2 uv)
+            {
+                const float VARIANCE_CLIPPING_GAMMA = 1.0;
+                const float2 k = _MainTex_TexelSize.xy;
+
+                float4 NearColor0 = sample_color(_MainTex, uv + k*float2(1, 0));
+                float4 NearColor1 = sample_color(_MainTex, uv + k*float2(0, 1));
+                float4 NearColor2 = sample_color(_MainTex, uv + k*float2(-1, 0));
+                float4 NearColor3 = sample_color(_MainTex, uv + k*float2(0, -1));
+
+                // Compute the two moments
+                float4 M1 = color + NearColor0 + NearColor1 + NearColor2 + NearColor3;
+                float4 M2 = color * color + NearColor0 * NearColor0 + NearColor1 * NearColor1 
+                + NearColor2 * NearColor2 + NearColor3 * NearColor3;
+
+                float4 MU = M1 / 5.0;
+                float4 Sigma = sqrt(M2 / 5.0 - MU * MU);
+
+                float4 BoxMin = MU - VARIANCE_CLIPPING_GAMMA * Sigma;
+                float4 BoxMax = MU + VARIANCE_CLIPPING_GAMMA * Sigma;
+
+                history = clamp(history, BoxMin, BoxMax);
+                return history;
+            }
             
             float PDnrand( float2 n ) {
                 return frac( sin(dot(n.xy, float2(12.9898f, 78.233f)))* 43758.5453f );
@@ -256,7 +292,7 @@
 
                 return accu / wsum;
             }
-            
+
             struct OutputSolver
             {
                 float4 destination : SV_Target0;
@@ -331,9 +367,14 @@
                 #endif
 
                 // Clip history samples
-                history = ClipToAABB(history, cmin.xyz, cmax.xyz, clamp(cavg, cmin, cmax));
+                // AABB clip
+                // history = ClipToAABB(history, cmin.xyz, cmax.xyz, clamp(cavg, cmin, cmax));
+
+                // vairance clip
+                history = VariancesClip(color, history, texcoord);
 
                 // feedback weight from unbiased luminance diff (t.lottes)
+                // https://community.arm.com/developer/tools-software/graphics/b/blog/posts/temporal-anti-aliasing
                 #if USE_YCOCG
                     float lum0 = color.r;
                     float lum1 = history.r;
