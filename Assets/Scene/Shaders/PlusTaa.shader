@@ -17,7 +17,13 @@
 
             #define _CLOSEST_FRAG_HEIGH 1
             #define _RESOLVE_HEIGH 1
-            #define USE_YCOCG 1
+
+            #define _VARIANCESCLIP
+            #ifdef _VARIANCESCLIP
+                #define USE_YCOCG 0
+            #else
+                #define USE_YCOCG 1
+            #endif
 
             #include "UnityCG.cginc"
 
@@ -247,11 +253,12 @@
                 + NearColor2 * NearColor2 + NearColor3 * NearColor3;
 
                 float4 MU = M1 / 5.0;
-                float4 Sigma = sqrt(M2 / 5.0 - MU * MU);
+                float4 Sigma = sqrt(abs(M2 / 5.0 - MU * MU));
 
                 float4 BoxMin = MU - VARIANCE_CLIPPING_GAMMA * Sigma;
                 float4 BoxMax = MU + VARIANCE_CLIPPING_GAMMA * Sigma;
 
+                // history = ClipToAABB(history, BoxMin, BoxMax, MU);
                 history = clamp(history, BoxMin, BoxMax);
                 return history;
             }
@@ -367,11 +374,13 @@
                 #endif
 
                 // Clip history samples
-                // AABB clip
-                // history = ClipToAABB(history, cmin.xyz, cmax.xyz, clamp(cavg, cmin, cmax));
-
-                // vairance clip
-                history = VariancesClip(color, history, texcoord);
+                #ifdef _VARIANCESCLIP
+                    // vairance clip
+                    history = VariancesClip(color, history, texcoord);
+                #else
+                    // AABB clip
+                    history = ClipToAABB(history, cmin.xyz, cmax.xyz, clamp(cavg, cmin, cmax));
+                #endif
 
                 // feedback weight from unbiased luminance diff (t.lottes)
                 // https://community.arm.com/developer/tools-software/graphics/b/blog/posts/temporal-anti-aliasing
@@ -379,15 +388,15 @@
                     float lum0 = color.r;
                     float lum1 = history.r;
                 #else
-                    float lum0 = Luminance(texel0.rgb);
-                    float lum1 = Luminance(texel1.rgb);
+                    float lum0 = Luminance(color.rgb);
+                    float lum1 = Luminance(history.rgb);
                 #endif
                 float unbiased_diff = abs(lum0 - lum1) / max(lum0, max(lum1, 0.2));
                 float unbiased_weight = 1.0 - unbiased_diff;
                 float unbiased_weight_sqr = unbiased_weight * unbiased_weight;
                 float weight = lerp(_FeedbackMin, _FeedbackMax, unbiased_weight_sqr);
 
-                color = lerp(color, history, weight);
+                color = lerp(color, history, 1);
                 history = color;
 
                 // motion blending
@@ -416,6 +425,8 @@
                 history = saturate(history + noise4);
 
                 OutputSolver output;
+                color.a = 1;
+                history.a = 1;
                 output.destination = color;
                 output.history = history;
                 return output;

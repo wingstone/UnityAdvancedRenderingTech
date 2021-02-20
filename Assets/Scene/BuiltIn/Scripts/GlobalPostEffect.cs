@@ -4,7 +4,8 @@ using UnityEngine.Rendering;
 using PostProcessing;
 
 [ExecuteAlways]
-[ImageEffectAllowedInSceneView]
+// [ImageEffectAllowedInSceneView]
+[RequireComponent(typeof(Camera))]
 public class GlobalPostEffect : MonoBehaviour
 {
     //==== type
@@ -16,6 +17,7 @@ public class GlobalPostEffect : MonoBehaviour
     }
     class ShaderConstants
     {
+        public static int _SourceRT = Shader.PropertyToID("_SourceRT");
         public static int _TaaTmpRT = Shader.PropertyToID("_TaaTmpRT");
         public static int Jitter = Shader.PropertyToID("_Jitter");
         public static int Sharpness = Shader.PropertyToID("_Sharpness");
@@ -30,6 +32,7 @@ public class GlobalPostEffect : MonoBehaviour
     private void OnEnable()
     {
         Initial();
+        UpdateRender();
     }
 
     private void OnPreCull()
@@ -123,20 +126,20 @@ public class GlobalPostEffect : MonoBehaviour
             rt.filterMode = FilterMode.Bilinear;
             rt.name = "Taa" + id;
 
-            cmd.Blit(ShaderConstants._TaaTmpRT, rt);
+            cmd.Blit(BuiltinRenderTextureType.CameraTarget, rt);
 
             _HistoryRT[id] = rt;
         }
         else if (rt.width != _Camera.pixelWidth || rt.height != _Camera.pixelHeight)
         {
+            var rt2 = RenderTexture.GetTemporary(_Camera.pixelWidth, _Camera.pixelHeight, 0, RenderTextureFormat.ARGBHalf);
+            rt2.filterMode = FilterMode.Bilinear;
+            rt2.name = "Taa" + id;
+
+            cmd.Blit(rt, rt2);
             RenderTexture.ReleaseTemporary(rt);
-            rt = RenderTexture.GetTemporary(_Camera.pixelWidth, _Camera.pixelHeight, 0, RenderTextureFormat.ARGBHalf);
-            rt.filterMode = FilterMode.Bilinear;
-            rt.name = "Taa" + id;
 
-            cmd.Blit(ShaderConstants._TaaTmpRT, rt);
-
-            _HistoryRT[id] = rt;
+            _HistoryRT[id] = rt2;
         }
 
         return _HistoryRT[id];
@@ -173,6 +176,11 @@ public class GlobalPostEffect : MonoBehaviour
 
         _CommandBuffer.GetTemporaryRT(ShaderConstants._TaaTmpRT, _Camera.pixelWidth, _Camera.pixelHeight, 0, FilterMode.Bilinear, RenderTextureFormat.ARGBHalf);
 
+        _CommandBuffer.GetTemporaryRT(ShaderConstants._SourceRT, _Camera.pixelWidth, _Camera.pixelHeight, 0, FilterMode.Bilinear, RenderTextureFormat.ARGBHalf);
+
+        //copy
+        _CommandBuffer.Blit(BuiltinRenderTextureType.CameraTarget, ShaderConstants._SourceRT);
+
         //taa
         _CommandBuffer.BeginSample("TemporalAntialiasing");
 
@@ -195,7 +203,7 @@ public class GlobalPostEffect : MonoBehaviour
         // _CommandBuffer.SetGlobalTexture(ShaderConstants._MainTex, BuiltinRenderTextureType.CameraTarget);
         // _CommandBuffer.SetRenderTarget(m_Mrt, BuiltinRenderTextureType.CameraTarget);
         // _CommandBuffer.DrawMesh(RuntimeUtilities.fullscreenTriangle, Matrix4x4.identity, _TaaMat, 0, 0);
-        RuntimeUtilities.BlitFullscreenTriangle(_CommandBuffer, BuiltinRenderTextureType.CameraTarget, m_Mrt, BuiltinRenderTextureType.CameraTarget, _TaaMat, 0);
+        RuntimeUtilities.BlitFullscreenTriangle(_CommandBuffer, ShaderConstants._SourceRT, m_Mrt, BuiltinRenderTextureType.CameraTarget, _TaaMat, 0);
 
         _CommandBuffer.EndSample("TemporalAntialiasing");
 
