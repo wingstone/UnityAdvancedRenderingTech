@@ -3,6 +3,14 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using PostProcessing;
 
+// reference
+// https://zhuanlan.zhihu.com/p/64993622
+// https://zhuanlan.zhihu.com/p/28800047
+// https://community.arm.com/developer/tools-software/graphics/b/blog/posts/temporal-anti-aliasing
+// https://www.gdcvault.com/play/1022970/Temporal-Reprojection-Anti-Aliasing-in
+// https://de45xmedrsdbp.cloudfront.net/Resources/files/TemporalAA_small-59732822.pdf
+// https://developer.download.nvidia.cn/gameworks/events/GDC2016/msalvi_temporal_supersampling.pdf
+
 [ExecuteAlways]
 // [ImageEffectAllowedInSceneView]
 [RequireComponent(typeof(Camera))]
@@ -13,17 +21,23 @@ public class GlobalPostEffect : MonoBehaviour
     class ShaderStrings
     {
         public static string uber = "Hidden/AdvancedRTR/Uber";
-        public static string taa = "Hidden/AdvancedRTR/PlusTaa";
+        public static string plusTaa = "Hidden/AdvancedRTR/PlusTaa";
+        public static string taa = "Hidden/AdvancedRTR/TAA";
     }
     class ShaderConstants
     {
         public static int _SourceRT = Shader.PropertyToID("_SourceRT");
         public static int _TaaTmpRT = Shader.PropertyToID("_TaaTmpRT");
         public static int Jitter = Shader.PropertyToID("_Jitter");
+
+        //taa
         public static int Sharpness = Shader.PropertyToID("_Sharpness");
+        public static int FinalBlendParameters = Shader.PropertyToID("_FinalBlendParameters");
+
+        //plustaa
         public static int feedbackMin = Shader.PropertyToID("_FeedbackMin");
         public static int feedbackMax = Shader.PropertyToID("_FeedbackMax");
-        public static int FinalBlendParameters = Shader.PropertyToID("_FinalBlendParameters");
+
         public static int HistoryTex = Shader.PropertyToID("_HistoryTex");
     }
 
@@ -163,7 +177,7 @@ public class GlobalPostEffect : MonoBehaviour
         if (_TaaMat == null)
         {
 
-            Shader taa = Shader.Find(ShaderStrings.taa);
+            Shader taa = Shader.Find(ShaderStrings.plusTaa);
             _TaaMat = new Material(taa);
             _TaaMat.hideFlags = HideFlags.HideAndDontSave;
         }

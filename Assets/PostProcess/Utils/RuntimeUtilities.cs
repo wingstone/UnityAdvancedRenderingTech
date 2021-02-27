@@ -382,6 +382,13 @@ namespace PostProcessing
             #endif
         }
 
+        public static void BlitFullscreenTriangle(CommandBuffer cmd, RenderTargetIdentifier source, RenderTargetIdentifier destination, Material material, int pass)
+        {
+            cmd.SetGlobalTexture(ShaderIDs.MainTex, source);
+            cmd.SetRenderTarget(destination, LoadAction.DontCare, StoreAction.Store, LoadAction.DontCare, StoreAction.DontCare);
+            cmd.DrawMesh(fullscreenTriangle, Matrix4x4.identity, material, pass);
+        }
+
         /// <summary>
         /// Blits a fullscreen triangle from a double-wide source.
         /// </summary>
