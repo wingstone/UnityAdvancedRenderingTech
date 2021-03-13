@@ -894,7 +894,7 @@ AudioListener:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2126694026}
-  m_Enabled: 1
+  m_Enabled: 0
 --- !u!20 &2126694028
 Camera:
   m_ObjectHideFlags: 0
@@ -976,7 +976,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2126694026}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8b9a305e18de0c04dbd257a21cd47087, type: 3}
   m_Name: 
@@ -1004,14 +1004,14 @@ MonoBehaviour:
     m_Bits: 1
   stopNaNPropagation: 1
   finalBlitToCameraTarget: 0
-  antialiasingMode: 3
+  antialiasingMode: 2
   temporalAntialiasing:
     jitterSpread: 1
     sharpness: 0
     stationaryBlending: 0.95
     motionBlending: 0.85
   subpixelMorphologicalAntialiasing:
-    quality: 2
+    quality: 0
   fastApproximateAntialiasing:
     fastMode: 0
     keepAlpha: 0
@@ -1055,6 +1055,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 2126694026}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 623d39e5c74bcc94ab95f029c4675960, type: 3}
+  m_Script: {fileID: 11500000, guid: 027d18918489bab449cd86cfd44d1a5e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _AreaTex: {fileID: 2800000, guid: 5f9cebf8b1ac6c64ab346196684c893d, type: 3}

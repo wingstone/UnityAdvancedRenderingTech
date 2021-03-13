@@ -386,7 +386,7 @@ namespace PostProcessing
         {
             cmd.SetGlobalTexture(ShaderIDs.MainTex, source);
             cmd.SetRenderTarget(destination, LoadAction.DontCare, StoreAction.Store, LoadAction.DontCare, StoreAction.DontCare);
-            cmd.DrawMesh(fullscreenTriangle, Matrix4x4.identity, material, pass);
+            cmd.DrawMesh(fullscreenTriangle, Matrix4x4.identity, material, 0, pass);
         }
 
         /// <summary>
