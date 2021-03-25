@@ -23,6 +23,7 @@ public class SSR : MonoBehaviour
     class ShaderStrings
     {
         public static string ssr = "Hidden/AdvancedRTR/SSR";
+        public static string blend = "Hidden/AdvancedRTR/blend";
     }
     class ShaderConstants
     {
@@ -99,6 +100,13 @@ public class SSR : MonoBehaviour
         _SSRMat.SetMatrix("_InverseProjectionMatrix", projectionMatrix.inverse);
         _SSRMat.SetMatrix("_ScreenSpaceProjectionMatrix", projectionMatrix);
         _SSRMat.SetFloat("_RayMatchStep", _RayMatchStep);
+
+        if(_BlendMat == null)
+        {
+            Shader blend = Shader.Find(ShaderStrings.blend);
+            _BlendMat = new Material(blend);
+            _BlendMat.hideFlags = HideFlags.HideAndDontSave;
+        }
     }
 
     private void Render()
@@ -117,7 +125,7 @@ public class SSR : MonoBehaviour
         _CommandBuffer.GetTemporaryRT(ShaderConstants._TestRT, _Camera.pixelWidth, _Camera.pixelHeight, 0, FilterMode.Bilinear, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
         RuntimeUtilities.BlitFullscreenTriangle(_CommandBuffer, ShaderConstants._SourceRT, ShaderConstants._TestRT, _SSRMat, 0);
 
-        RuntimeUtilities.BuiltinBlit(_CommandBuffer, ShaderConstants._TestRT, BuiltinRenderTextureType.CameraTarget);
+        RuntimeUtilities.BuiltinBlit(_CommandBuffer, ShaderConstants._TestRT, BuiltinRenderTextureType.CameraTarget, _BlendMat, 0);
 
         _CommandBuffer.EndSample("SSR");
 
@@ -156,6 +164,9 @@ public class SSR : MonoBehaviour
     Camera _camera = null;
     CommandBuffer _CommandBuffer = null;
     Material _SSRMat = null;
+    Material _BlendMat = null;
+
+    [Range(0, 0.3f)]
     [SerializeField]
     float _RayMatchStep = 0.01f;
 }

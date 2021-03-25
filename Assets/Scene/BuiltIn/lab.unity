@@ -172,7 +172,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 99d2323c4f1633f46b6dc9c91d4f756d, type: 2}
+  - {fileID: 2100000, guid: 58038a165c8281c4ab62ba31af00dba9, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -265,7 +265,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 99d2323c4f1633f46b6dc9c91d4f756d, type: 2}
+  - {fileID: 2100000, guid: 58038a165c8281c4ab62ba31af00dba9, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -450,7 +450,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 99d2323c4f1633f46b6dc9c91d4f756d, type: 2}
+  - {fileID: 2100000, guid: 58038a165c8281c4ab62ba31af00dba9, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -543,7 +543,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 99d2323c4f1633f46b6dc9c91d4f756d, type: 2}
+  - {fileID: 2100000, guid: 58038a165c8281c4ab62ba31af00dba9, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -730,7 +730,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 99d2323c4f1633f46b6dc9c91d4f756d, type: 2}
+  - {fileID: 2100000, guid: 58038a165c8281c4ab62ba31af00dba9, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -823,7 +823,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 99d2323c4f1633f46b6dc9c91d4f756d, type: 2}
+  - {fileID: 2100000, guid: 58038a165c8281c4ab62ba31af00dba9, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -964,7 +964,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3113b1a3d2a4f7f46b1f9236e8c52b31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _RayMatchStep: 1.16
+  _RayMatchStep: 0.085
 --- !u!114 &2126694031
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -972,7 +972,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2126694026}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8b9a305e18de0c04dbd257a21cd47087, type: 3}
   m_Name: 

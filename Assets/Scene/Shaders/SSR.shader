@@ -11,6 +11,7 @@
         Pass
         {
             Name "Ray Matching Test"
+
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -57,10 +58,10 @@
             {
                 Result result = (Result)0;
                 
-                float matchStep = min(_MainTex_TexelSize.x, _MainTex_TexelSize.y);
+                // float matchStep = min(_MainTex_TexelSize.x, _MainTex_TexelSize.y);
                 for(int i = 0; i < 32; i++)
                 {
-                    ray.origin += ray.direction*_RayMatchStep * matchStep;
+                    ray.origin += ray.direction*_RayMatchStep;
                     float4 position = mul(_ScreenSpaceProjectionMatrix, float4(ray.origin, 1));
                     position.xyz = position.xyz / position.w;
                     float2 uv = position.xy*0.5+0.5;
@@ -71,6 +72,8 @@
                     }
 
                     float realZ = position.z;
+                    // result.color = tex2D(_CameraDepthTexture, uv).r;
+                    // break;
                     if(tex2D(_CameraDepthTexture, uv).r > realZ)
                     {
                         result.uv = uv;
