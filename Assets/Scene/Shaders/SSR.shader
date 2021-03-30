@@ -33,7 +33,9 @@
             float4x4 _InverseViewMatrix;
             float4x4 _InverseProjectionMatrix;
             float4x4 _ScreenSpaceProjectionMatrix;
-            float _RayMatchStep;
+            float _RayMatchSteps;
+            float _RayMatchDistance;
+            float _DepthThickness;
 
             struct Result
             {
@@ -57,11 +59,17 @@
             Result RayMatching(Ray ray)
             {
                 Result result = (Result)0;
+
+                // face camera
+                if(ray.direction.z > 0)
+                    return result;
                 
                 // float matchStep = min(_MainTex_TexelSize.x, _MainTex_TexelSize.y);
-                for(int i = 0; i < 32; i++)
+                float stepLen = _RayMatchDistance/_RayMatchSteps;
+                UNITY_LOOP
+                for(int i = 0; i < _RayMatchSteps; i++)
                 {
-                    ray.origin += ray.direction*_RayMatchStep;
+                    ray.origin += ray.direction*stepLen;
                     float4 position = mul(_ScreenSpaceProjectionMatrix, float4(ray.origin, 1));
                     position.xyz = position.xyz / position.w;
                     float2 uv = position.xy*0.5+0.5;
@@ -74,7 +82,8 @@
                     float realZ = position.z;
                     // result.color = tex2D(_CameraDepthTexture, uv).r;
                     // break;
-                    if(tex2D(_CameraDepthTexture, uv).r > realZ)
+                    float sceneDepth = tex2D(_CameraDepthTexture, uv).r;
+                    if(sceneDepth > realZ && sceneDepth < realZ + _DepthThickness)
                     {
                         result.uv = uv;
                         result.color = tex2D(_MainTex, uv);

@@ -99,7 +99,9 @@ public class SSR : MonoBehaviour
         _SSRMat.SetMatrix("_InverseViewMatrix", _Camera.worldToCameraMatrix.inverse);
         _SSRMat.SetMatrix("_InverseProjectionMatrix", projectionMatrix.inverse);
         _SSRMat.SetMatrix("_ScreenSpaceProjectionMatrix", projectionMatrix);
-        _SSRMat.SetFloat("_RayMatchStep", _RayMatchStep);
+        _SSRMat.SetFloat("_RayMatchSteps", _RayMatchSteps);
+        _SSRMat.SetFloat("_RayMatchDistance", _RayMatchDistance);
+        _SSRMat.SetFloat("_DepthThickness", _DepthThickness);
 
         if(_BlendMat == null)
         {
@@ -166,7 +168,13 @@ public class SSR : MonoBehaviour
     Material _SSRMat = null;
     Material _BlendMat = null;
 
-    [Range(0, 0.3f)]
+    [Range(0, 40)]
     [SerializeField]
-    float _RayMatchStep = 0.01f;
+    int _RayMatchSteps = 20;
+    [Range(0, 5f)]
+    [SerializeField]
+    float _RayMatchDistance = 3.0f;
+    [Range(0, 5f)]
+    [SerializeField]
+    float _DepthThickness = 0.1f;
 }

@@ -964,7 +964,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3113b1a3d2a4f7f46b1f9236e8c52b31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _RayMatchStep: 0.085
+  _RayMatchSteps: 24
+  _RayMatchDistance: 2.4
+  _DepthThickness: 0.01
 --- !u!114 &2126694031
 MonoBehaviour:
   m_ObjectHideFlags: 0
