@@ -101,7 +101,7 @@ public class SSR : MonoBehaviour
         _SSRMat.SetMatrix("_ScreenSpaceProjectionMatrix", projectionMatrix);
         _SSRMat.SetFloat("_RayMatchSteps", _RayMatchSteps);
         _SSRMat.SetFloat("_RayMatchDistance", _RayMatchDistance);
-        _SSRMat.SetFloat("_DepthThickness", _DepthThickness);
+        // _SSRMat.SetFloat("_DepthThickness", _DepthThickness);
 
         if(_BlendMat == null)
         {
@@ -174,7 +174,7 @@ public class SSR : MonoBehaviour
     [Range(0, 5f)]
     [SerializeField]
     float _RayMatchDistance = 3.0f;
-    [Range(0, 5f)]
-    [SerializeField]
-    float _DepthThickness = 0.1f;
+    // [Range(0, 5f)]
+    // [SerializeField]
+    // float _DepthThickness = 0.1f;
 }
