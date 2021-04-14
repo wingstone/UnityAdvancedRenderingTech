@@ -96,7 +96,7 @@
             bool rayMarch3D(float3 originVS, float3 dirVS, inout float iterations, out float3 hitPointSS)
             {
                 //Prevent immediate self intersection.
-                // originVS = originVS + dirVS * RAY_MARCH_ORIGIN_OFFSET_EPSILON;
+                originVS = originVS + dirVS * RAY_MARCH_ORIGIN_OFFSET_EPSILON;
                 float deltaT = _RayMatchDistance/_RayMatchSteps;
                 float3 raySS = 0;
                 float3 rayVS = originVS;
@@ -121,7 +121,10 @@
 
                     float sceneDepth = tex2D(_CameraDepthTexture, uv).r;
                     float realZ = raySS.z;
-                    if(sceneDepth > realZ && sceneDepth < realZ + deltaT)
+                    sceneDepth = LinearEyeDepth(sceneDepth);
+                    realZ = rayHS.w;
+                    // if(sceneDepth > realZ && sceneDepth < realZ + _DepthThickness)
+                    if( realZ > sceneDepth  && realZ < sceneDepth + deltaT)
                     {
                         missed = true;
                         break;
@@ -264,7 +267,6 @@
                 Ray ray = (Ray)0;
                 ray.origin = GetViewSpacePosition(i.uv);
                 ray.direction = reflect(normalize(ray.origin), normal);
-
                 
                 // face camera
                 if(ray.direction.z > 0)
