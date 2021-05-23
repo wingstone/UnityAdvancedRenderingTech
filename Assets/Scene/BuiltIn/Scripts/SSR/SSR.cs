@@ -4,14 +4,12 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using PostProcessing;
 
-// https://developer.download.nvidia.cn/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf
-// http://blog.simonrodriguez.fr/articles/30-07-2016_implementing_fxaa.html
+// https://blog.csdn.net/puppet_master/article/details/80808486
+// http://jcgt.org/published/0003/04/04/paper.pdf
+// http://www.cse.chalmers.se/edu/year/2018/course/TDA361/Advanced%20Computer%20Graphics/Screen-space%20reflections.pdf
 
 /*
 attention:
-fxaa should use in srgb space;
-fxaa shold use in LDR;
-fxaa shold use bilinear filter;
 */
 
 [ExecuteAlways]
@@ -174,7 +172,7 @@ public class SSR : MonoBehaviour
     [Range(0, 5f)]
     [SerializeField]
     float _RayMatchDistance = 3.0f;
-    [Range(0, 5f)]
+    [Range(0, 2f)]
     [SerializeField]
     float _DepthThickness = 0.1f;
 }
