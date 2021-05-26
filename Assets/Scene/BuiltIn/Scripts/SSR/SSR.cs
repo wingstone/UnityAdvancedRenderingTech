@@ -100,6 +100,8 @@ public class SSR : MonoBehaviour
         _SSRMat.SetFloat("_RayMatchSteps", _RayMatchSteps);
         _SSRMat.SetFloat("_RayMatchDistance", _RayMatchDistance);
         _SSRMat.SetFloat("_DepthThickness", _DepthThickness);
+        _SSRMat.SetFloat("_ScreenDistance", _ScreenDistance);
+        _SSRMat.SetFloat("_ThicknessScale", _ThicknessScale);
 
         if(_BlendMat == null)
         {
@@ -166,13 +168,21 @@ public class SSR : MonoBehaviour
     Material _SSRMat = null;
     Material _BlendMat = null;
 
-    [Range(0, 40)]
+    [Range(0, 100)]
     [SerializeField]
     int _RayMatchSteps = 20;
+    [Header("Ray Match Parmaters")]
     [Range(0, 5f)]
     [SerializeField]
     float _RayMatchDistance = 3.0f;
     [Range(0, 2f)]
     [SerializeField]
     float _DepthThickness = 0.1f;
+    [Header("DDA Tracing Parmaters")]
+    [Range(1, 512f)]
+    [SerializeField]
+    float _ScreenDistance = 1.0f;
+    [Range(0.3f, 5.0f)]
+    [SerializeField]
+    float _ThicknessScale = 1.0f;
 }

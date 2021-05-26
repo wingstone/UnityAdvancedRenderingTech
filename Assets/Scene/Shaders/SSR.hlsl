@@ -1,5 +1,3 @@
-
-#define TRAVERSAL_SCHEME_RAY_MARCH_3D
 #define RAY_MARCH_ORIGIN_OFFSET_EPSILON 0.0001
 
 #include "UnityCG.cginc"
@@ -20,6 +18,8 @@ float4x4 _ScreenSpaceProjectionMatrix;
 float _RayMatchSteps;
 float _RayMatchDistance;
 float _DepthThickness;
+float _ScreenDistance;
+float _ThicknessScale;
 
 // PC view space: right coordinate, front:-z;
 // PC screen range x:(-1,1), y:(-1,1), z:(1,0), reverse-z;
@@ -85,9 +85,6 @@ bool rayMarch3D(float3 originVS, float3 dirVS, inout float factor, out float3 hi
 }
 
 
-    //Project the origin into screen-space pixel coodinates.
-    //pHS1 is already given in input.
-    // float pHS0w = mul(float4(originVS, 1), cbFrustumData.vsToHSProjMatrix).w;
 bool nonConservativeDDATracing(float2 pSS0, float2 pSS1, float pHS0w, float pHS1w, float3 originVS, float3 endPointVS, inout float factor, out float3 hitPointSS)
 {
     //Perspective Division terms.
@@ -127,7 +124,7 @@ bool nonConservativeDDATracing(float2 pSS0, float2 pSS1, float pHS0w, float pHS1
     float dk = (k1 - k0) * invDx;
 
     //Scale Derivatives by pixel stride.
-    float stride = _RayMatchDistance/_RayMatchSteps;
+    float stride = _ScreenDistance / _RayMatchSteps;
     dPSS *= stride;
     dQ *= stride;
     dk *= stride;
@@ -167,17 +164,31 @@ bool nonConservativeDDATracing(float2 pSS0, float2 pSS1, float pHS0w, float pHS1
 
         // view space test
         float realZ = rayZMax;
-        float2 uv = hitPixel;
+        float2 uv = hitPixel*_MainTex_TexelSize.xy;
+        if(uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1 )
+        {
+            break;
+        }
         float sceneDepth = tex2D(_CameraDepthTexture, uv).r;
+        // if(sceneDepth < 1e-4)   //skybox
+        // {
+        //     break;
+        // }
         sceneDepth = -LinearEyeDepth(sceneDepth);
-        if( realZ < sceneDepth  && realZ > sceneDepth - _DepthThickness)
+        float thickness = rayZMin - rayZMax;
+        if( realZ < sceneDepth && realZ > sceneDepth - thickness*_ThicknessScale)
         {
             hited = true;
             factor = iterations / _RayMatchSteps;
             hitPointSS = float3(uv, q.z * (1.0f / k));
             break;
         }
+        else if(realZ < sceneDepth)
+        {
+            break;
+        }
     }
 
+    factor = rayZMax;
     return hited;
 }
