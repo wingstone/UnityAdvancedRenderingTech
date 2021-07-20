@@ -1,0 +1,44 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+Texture2D<float4> _SourceRT;
+Texture2D<float4> _CameraDepthTexture; //depth = r;
+float4 _TextureSize;
+float4x4 _InverseProjectionMatrix;
+float4x4 _ProjectionMatrix;
+float4x4 _ViewMatrix;
+float _PlaneHeight;
+float4 _PlaneBoxMin;
+float4 _PlaneBoxMax;
+
+SamplerState sampler_LinearClamp;
+SamplerState sampler_PointClamp;
+
+
+float3 GetWorldSpacePosition(float2 uv)
+{
+    float depth = _CameraDepthTexture.SampleLevel(sampler_PointClamp, uv, 0.0).r;
+    float4 result = mul(_InverseProjectionMatrix, float4(2.0 * uv - 1.0, depth, 1.0));
+    return result.xyz / result.w;
+}
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    float2 uv = (id.xy+0.5)*_TextureSize.xy;
+    float depth = _CameraDepthTexture.SampleLevel(sampler_PointClamp, uv, 0.0).r;
+    if(depth <= 1e-5)
+        return;
+
+    float3 pos = GetWorldSpacePosition(uv);
+    pos.y = _PlaneHeight*2- pos.y;
+    float4 clipPos = mul(_ProjectionMatrix, float4(pos, 1));
+    float2 newUV = clipPos.xy/clipPos.w*0.5 + 0.5;
+
+    int2 newid = saturate(newUV)*_TextureSize.zw;
+    Result[newid.xy] = float4(_SourceRT.SampleLevel(sampler_LinearClamp, uv, 0.0).rgb, 1.0);
+}

@@ -1,4 +1,4 @@
-﻿Shader "Hidden/AdvancedRTR/SSR"
+﻿Shader "Hidden/AdvancedRTR/SSPR"
 {
     Properties
     {
@@ -15,11 +15,6 @@
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-
-            #include "SSR.hlsl"
-
-            // #define TRAVERSAL_SCHEME_RAY_MARCH_3D
-            #define TRAVERSAL_SCHEME_NON_CONSERVATIVE
 
             float4 frag(VaryingsDefault i) : SV_Target0
             {
