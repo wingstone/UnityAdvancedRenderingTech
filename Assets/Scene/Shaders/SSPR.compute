@@ -10,6 +10,7 @@ float4 _TextureSize;
 float4x4 _InverseProjectionMatrix;
 float4x4 _ProjectionMatrix;
 float4x4 _ViewMatrix;
+float4 _CameraPos;
 float _PlaneHeight;
 float4 _PlaneBoxMin;
 float4 _PlaneBoxMax;
@@ -17,6 +18,7 @@ float4 _PlaneBoxMax;
 SamplerState sampler_LinearClamp;
 SamplerState sampler_PointClamp;
 
+#include "UnityCG.cginc"
 
 float3 GetWorldSpacePosition(float2 uv)
 {
@@ -35,10 +37,29 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         return;
 
     float3 pos = GetWorldSpacePosition(uv);
-    pos.y = _PlaneHeight*2- pos.y;
-    float4 clipPos = mul(_ProjectionMatrix, float4(pos, 1));
-    float2 newUV = clipPos.xy/clipPos.w*0.5 + 0.5;
+
+    // mirrorpos
+    float3 mirrorPos = pos;
+    mirrorPos.y = _PlaneHeight*2- mirrorPos.y;
+
+    // intersect
+    float3 camPos = _CameraPos.xyz;
+    float3 intersectPos = mirrorPos + (camPos - mirrorPos)*(_PlaneHeight - mirrorPos.y)/(camPos.y - mirrorPos.y);
+    if(intersectPos.x < _PlaneBoxMin.x || intersectPos.z < _PlaneBoxMin.y
+    || intersectPos.x > _PlaneBoxMax.x || intersectPos.z > _PlaneBoxMax.y)
+        return;
+
+    float4 clipMirrorPos = mul(_ProjectionMatrix, float4(mirrorPos, 1));
+    float2 newUV = clipMirrorPos.xy/clipMirrorPos.w*0.5 + 0.5;
+
+    // test occlude in view space
+    float occludeDepth = _CameraDepthTexture.SampleLevel(sampler_PointClamp, newUV, 0.0).r;
+    occludeDepth = -LinearEyeDepth(occludeDepth);
+    float intersectDepth = mul(_ViewMatrix, float4(intersectPos, 1)).z;
+    if(intersectDepth < occludeDepth)
+        return;
 
     int2 newid = saturate(newUV)*_TextureSize.zw;
     Result[newid.xy] = float4(_SourceRT.SampleLevel(sampler_LinearClamp, uv, 0.0).rgb, 1.0);
+
 }
