@@ -25,7 +25,8 @@ public class SSPR : MonoBehaviour
     {
         public static int _SourceRT = Shader.PropertyToID("_SourceRT");
         public static int _CameraDepthTexture = Shader.PropertyToID("_CameraDepthTexture");
-        public static int _ResultRT = Shader.PropertyToID("Result");
+        public static int _ResultRT = Shader.PropertyToID("_ResultRT");
+        public static int _IntermediateRT = Shader.PropertyToID("_IntermediateRT");
         public static int _InverseProjectionMatrix = Shader.PropertyToID("_InverseProjectionMatrix");
         public static int _ProjectionMatrix = Shader.PropertyToID("_ProjectionMatrix");
         public static int _ViewMatrix = Shader.PropertyToID("_ViewMatrix");
@@ -84,17 +85,19 @@ public class SSPR : MonoBehaviour
 
         //SSPR
         _CommandBuffer.BeginSample("SSPR");
-        _CommandBuffer.GetTemporaryRT(ShaderConstants._ResultRT, _Camera.pixelWidth, _Camera.pixelHeight, 0, FilterMode.Bilinear, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
 
-        _CommandBuffer.SetRenderTarget(ShaderConstants._ResultRT);
+        #region first
+
+        _CommandBuffer.GetTemporaryRT(ShaderConstants._IntermediateRT, _Camera.pixelWidth, _Camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
+
+        _CommandBuffer.SetRenderTarget(ShaderConstants._IntermediateRT);
         _CommandBuffer.ClearRenderTarget(false, true, new Color(0, 0, 0, 0));
 
-        int kernel = computeShader.FindKernel("CSMain");
+        int kernelGet = computeShader.FindKernel("CSMainGet");
         int width = _Camera.pixelWidth;
         int height = _Camera.pixelHeight;
-        _CommandBuffer.SetComputeTextureParam(computeShader, kernel, ShaderConstants._SourceRT, ShaderConstants._SourceRT);
-        _CommandBuffer.SetComputeTextureParam(computeShader, kernel, ShaderConstants._ResultRT, ShaderConstants._ResultRT);
-        _CommandBuffer.SetComputeTextureParam(computeShader, kernel, ShaderConstants._CameraDepthTexture, BuiltinRenderTextureType.ResolvedDepth);
+        _CommandBuffer.SetComputeTextureParam(computeShader, kernelGet, ShaderConstants._CameraDepthTexture, BuiltinRenderTextureType.ResolvedDepth);
+        _CommandBuffer.SetComputeTextureParam(computeShader, kernelGet, ShaderConstants._IntermediateRT, ShaderConstants._IntermediateRT);
         _CommandBuffer.SetComputeVectorParam(computeShader, ShaderConstants._TextureSize, new Vector4(1f / width, 1f / height, width, height));
         _CommandBuffer.SetComputeVectorParam(computeShader, ShaderConstants._CameraPos, _Camera.transform.position);
         _CommandBuffer.SetComputeFloatParam(computeShader, ShaderConstants._PlaneHeight, _height);
@@ -108,13 +111,30 @@ public class SSPR : MonoBehaviour
         _CommandBuffer.SetComputeMatrixParam(computeShader, ShaderConstants._ProjectionMatrix, vp);
         _CommandBuffer.SetComputeMatrixParam(computeShader, ShaderConstants._ViewMatrix, _Camera.worldToCameraMatrix);
 
-        _CommandBuffer.DispatchCompute(computeShader, kernel, Mathf.CeilToInt(width / 8f), Mathf.CeilToInt(height / 8f), 1);
+        _CommandBuffer.DispatchCompute(computeShader, kernelGet, Mathf.CeilToInt(width / 8f), Mathf.CeilToInt(height / 8f), 1);
+
+        #endregion
+
+        #region second
+
+        _CommandBuffer.GetTemporaryRT(ShaderConstants._ResultRT, _Camera.pixelWidth, _Camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
+
+        int kernelSet = computeShader.FindKernel("CSMainSet");
+        _CommandBuffer.SetComputeTextureParam(computeShader, kernelSet, ShaderConstants._SourceRT, ShaderConstants._SourceRT);
+        _CommandBuffer.SetComputeTextureParam(computeShader, kernelSet, ShaderConstants._IntermediateRT, ShaderConstants._IntermediateRT);
+        _CommandBuffer.SetComputeTextureParam(computeShader, kernelSet, ShaderConstants._ResultRT, ShaderConstants._ResultRT);
+        _CommandBuffer.SetComputeVectorParam(computeShader, ShaderConstants._TextureSize, new Vector4(1f / width, 1f / height, width, height));
+
+        _CommandBuffer.DispatchCompute(computeShader, kernelSet, Mathf.CeilToInt(width / 8f), Mathf.CeilToInt(height / 8f), 1);
+
+        #endregion
 
         _CommandBuffer.EndSample("SSPR");
 
         _CommandBuffer.Blit(ShaderConstants._ResultRT, BuiltinRenderTextureType.CameraTarget, _SSPRBlendMat);
 
         _CommandBuffer.ReleaseTemporaryRT(ShaderConstants._SourceRT);
+        _CommandBuffer.ReleaseTemporaryRT(ShaderConstants._IntermediateRT);
         _CommandBuffer.ReleaseTemporaryRT(ShaderConstants._ResultRT);
         _Camera.AddCommandBuffer(CameraEvent.BeforeImageEffects, _CommandBuffer);
     }

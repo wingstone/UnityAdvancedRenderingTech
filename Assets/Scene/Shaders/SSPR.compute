@@ -1,11 +1,11 @@
-﻿// Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel CSMain
+﻿#pragma kernel CSMainGet
+#pragma kernel CSMainSet
 
-// Create a RenderTexture with enableRandomWrite flag and set it
-// with cs.SetTexture
-RWTexture2D<float4> Result;
-Texture2D<float4> _SourceRT;
 Texture2D<float4> _CameraDepthTexture; //depth = r;
+Texture2D<float4> _SourceRT;
+RWTexture2D<float4> _IntermediateRT;
+RWTexture2D<float4> _ResultRT;
+
 float4 _TextureSize;
 float4x4 _InverseProjectionMatrix;
 float4x4 _ProjectionMatrix;
@@ -28,7 +28,7 @@ float3 GetWorldSpacePosition(float2 uv)
 }
 
 [numthreads(8,8,1)]
-void CSMain (uint3 id : SV_DispatchThreadID)
+void CSMainGet (uint3 id : SV_DispatchThreadID)
 {
     // TODO: insert actual code here!
     float2 uv = (id.xy+0.5)*_TextureSize.xy;
@@ -60,6 +60,22 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         return;
 
     int2 newid = saturate(newUV)*_TextureSize.zw;
-    Result[newid.xy] = float4(_SourceRT.SampleLevel(sampler_LinearClamp, uv, 0.0).rgb, 1.0);
+    _IntermediateRT[newid.xy] = float4(uv, 0.0, 1.0);
+    
+    // uint projectionHash = newUV.y << 16 | newUV.x;
+    // const uint writeOffset = uint(newUV.x) + uint(newUV.y) * uint(_TextureSize.x);
+    // uint originalValue = 0;
+    // InterlockedMax(_IntermediateRT[writeOffset], projectionHash, originalValue);
+}
 
+////////////////////////////////////////////////////////////
+
+[numthreads(8,8,1)]
+void CSMainSet (uint3 id : SV_DispatchThreadID)
+{
+    float4 value = _IntermediateRT[id.xy];
+    float2 newUV = value.xy;
+    float alpha = value.a;
+    if(alpha > 0.5)
+        _ResultRT[id.xy] = float4(_SourceRT.SampleLevel(sampler_LinearClamp, newUV, 0.0).rgb, 1.0);
 }
