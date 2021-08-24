@@ -1,9 +1,10 @@
-﻿#pragma kernel CSMainGet
+﻿#pragma kernel CSMainClear
+#pragma kernel CSMainGet
 #pragma kernel CSMainSet
 
 Texture2D<float4> _CameraDepthTexture; //depth = r;
 Texture2D<float4> _SourceRT;
-RWTexture2D<float4> _IntermediateRT;
+RWTexture2D<uint> _IntermediateRT;
 RWTexture2D<float4> _ResultRT;
 
 float4 _TextureSize;
@@ -14,11 +15,21 @@ float4 _CameraPos;
 float _PlaneHeight;
 float4 _PlaneBoxMin;
 float4 _PlaneBoxMax;
+float _StretchThreshold;
+float _StretchIntensity;
 
 SamplerState sampler_LinearClamp;
 SamplerState sampler_PointClamp;
 
 #include "UnityCG.cginc"
+///////////////////////////////////////////////////////////////////////
+
+[numthreads(8,8,1)]
+void CSMainClear (uint3 id : SV_DispatchThreadID)
+{
+    _IntermediateRT[id.xy] = 0xFFFFFFFF;
+}
+////////////////////////////////////////////////////////////////////////
 
 float3 GetWorldSpacePosition(float2 uv)
 {
@@ -30,13 +41,14 @@ float3 GetWorldSpacePosition(float2 uv)
 [numthreads(8,8,1)]
 void CSMainGet (uint3 id : SV_DispatchThreadID)
 {
-    // TODO: insert actual code here!
     float2 uv = (id.xy+0.5)*_TextureSize.xy;
     float depth = _CameraDepthTexture.SampleLevel(sampler_PointClamp, uv, 0.0).r;
     if(depth <= 1e-5)
         return;
 
     float3 pos = GetWorldSpacePosition(uv);
+    if(pos.y <= _PlaneHeight)
+        return;
 
     // mirrorpos
     float3 mirrorPos = pos;
@@ -51,6 +63,14 @@ void CSMainGet (uint3 id : SV_DispatchThreadID)
 
     float4 clipMirrorPos = mul(_ProjectionMatrix, float4(mirrorPos, 1));
     float2 newUV = clipMirrorPos.xy/clipMirrorPos.w*0.5 + 0.5;
+    
+    // Stretch
+    float HeightStretch = pos.y - _PlaneHeight;
+    float3 CameraDirection = normalize(mirrorPos - camPos);
+    float AngleStretch = saturate(- CameraDirection.y);
+    float ScreenStretch = saturate(abs(newUV.x*2.0f-1.0f) - _StretchThreshold);
+    float scale = 1 + HeightStretch * AngleStretch * ScreenStretch * _StretchIntensity;
+    newUV.x = (newUV.x - 0.5)*scale + 0.5;
 
     // test occlude in view space
     float occludeDepth = _CameraDepthTexture.SampleLevel(sampler_PointClamp, newUV, 0.0).r;
@@ -60,22 +80,47 @@ void CSMainGet (uint3 id : SV_DispatchThreadID)
         return;
 
     int2 newid = saturate(newUV)*_TextureSize.zw;
-    _IntermediateRT[newid.xy] = float4(uv, 0.0, 1.0);
+    // _IntermediateRT[newid.xy] = float4(uv, 0.0, 1.0);
     
-    // uint projectionHash = newUV.y << 16 | newUV.x;
-    // const uint writeOffset = uint(newUV.x) + uint(newUV.y) * uint(_TextureSize.x);
-    // uint originalValue = 0;
-    // InterlockedMax(_IntermediateRT[writeOffset], projectionHash, originalValue);
+    // encode hash
+    uint Hash = id.y << 16 | id.x;
+    uint2 writeOffset = newUV.xy * uint2(_TextureSize.zw);
+    uint dontcare = 0;
+    InterlockedMin(_IntermediateRT[writeOffset], Hash, dontcare);
 }
 
 ////////////////////////////////////////////////////////////
 
+uint GetResolveFinalPosition(uint2 id)
+{
+    // decode hash
+    uint Hash = _IntermediateRT[id.xy].x;
+    uint Hash0 = _IntermediateRT[uint2(id.x, id.y + 1)].x;
+    uint Hash1 = _IntermediateRT[uint2(id.x, id.y - 1)].x;
+    uint Hash2 = _IntermediateRT[uint2(id.x + 1, id.y)].x;
+    uint Hash3 = _IntermediateRT[uint2(id.x - 1, id.y)].x;
+    
+    Hash0 = min(Hash0, Hash1);
+    Hash2 = min(Hash2, Hash3);
+    Hash0 = min(Hash0, Hash2);
+    Hash = min(Hash, Hash0);
+    return Hash;
+}
+
 [numthreads(8,8,1)]
 void CSMainSet (uint3 id : SV_DispatchThreadID)
 {
-    float4 value = _IntermediateRT[id.xy];
-    float2 newUV = value.xy;
-    float alpha = value.a;
-    if(alpha > 0.5)
-        _ResultRT[id.xy] = float4(_SourceRT.SampleLevel(sampler_LinearClamp, newUV, 0.0).rgb, 1.0);
+    // decode hash
+    uint Hash = GetResolveFinalPosition(id.xy);
+
+    if (Hash != 0xFFFFFFFF)
+    {
+        uint x = Hash & 0xFFFF;
+        uint y = Hash >> 16;
+        _ResultRT[id.xy] = float4(_SourceRT[uint2(x,y)].rgb, 1);
+    }
+    else
+    {
+        _ResultRT[id.xy] = 0;
+    }
 }

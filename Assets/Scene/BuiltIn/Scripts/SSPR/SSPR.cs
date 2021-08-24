@@ -35,6 +35,8 @@ public class SSPR : MonoBehaviour
         public static int _PlaneBoxMin = Shader.PropertyToID("_PlaneBoxMin");
         public static int _PlaneBoxMax = Shader.PropertyToID("_PlaneBoxMax");
         public static int _TextureSize = Shader.PropertyToID("_TextureSize");
+        public static int _StretchThreshold = Shader.PropertyToID("_StretchThreshold");
+        public static int _StretchIntensity = Shader.PropertyToID("_StretchIntensity");
     }
 
     //====mono
@@ -86,16 +88,22 @@ public class SSPR : MonoBehaviour
         //SSPR
         _CommandBuffer.BeginSample("SSPR");
 
-        #region first
+        #region clear
 
-        _CommandBuffer.GetTemporaryRT(ShaderConstants._IntermediateRT, _Camera.pixelWidth, _Camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
+        _CommandBuffer.GetTemporaryRT(ShaderConstants._IntermediateRT, _Camera.pixelWidth, _Camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.RInt, RenderTextureReadWrite.Linear, 1, true);
 
-        _CommandBuffer.SetRenderTarget(ShaderConstants._IntermediateRT);
-        _CommandBuffer.ClearRenderTarget(false, true, new Color(0, 0, 0, 0));
-
-        int kernelGet = computeShader.FindKernel("CSMainGet");
         int width = _Camera.pixelWidth;
         int height = _Camera.pixelHeight;
+
+        int kernelClear = computeShader.FindKernel("CSMainClear");
+        _CommandBuffer.SetComputeTextureParam(computeShader, kernelClear, ShaderConstants._IntermediateRT, ShaderConstants._IntermediateRT);
+
+        _CommandBuffer.DispatchCompute(computeShader, kernelClear, Mathf.CeilToInt(width / 8f), Mathf.CeilToInt(height / 8f), 1);
+        #endregion
+
+        #region projection
+
+        int kernelGet = computeShader.FindKernel("CSMainGet");
         _CommandBuffer.SetComputeTextureParam(computeShader, kernelGet, ShaderConstants._CameraDepthTexture, BuiltinRenderTextureType.ResolvedDepth);
         _CommandBuffer.SetComputeTextureParam(computeShader, kernelGet, ShaderConstants._IntermediateRT, ShaderConstants._IntermediateRT);
         _CommandBuffer.SetComputeVectorParam(computeShader, ShaderConstants._TextureSize, new Vector4(1f / width, 1f / height, width, height));
@@ -103,6 +111,9 @@ public class SSPR : MonoBehaviour
         _CommandBuffer.SetComputeFloatParam(computeShader, ShaderConstants._PlaneHeight, _height);
         _CommandBuffer.SetComputeVectorParam(computeShader, ShaderConstants._PlaneBoxMin, _boxmin);
         _CommandBuffer.SetComputeVectorParam(computeShader, ShaderConstants._PlaneBoxMax, _boxmax);
+
+        _CommandBuffer.SetComputeFloatParam(computeShader, ShaderConstants._StretchThreshold, _threshlod);
+        _CommandBuffer.SetComputeFloatParam(computeShader, ShaderConstants._StretchIntensity, _intensity);
 
         var projectionMatrix = GL.GetGPUProjectionMatrix(_Camera.projectionMatrix, false);
         var vp = projectionMatrix * _Camera.worldToCameraMatrix;
@@ -115,7 +126,7 @@ public class SSPR : MonoBehaviour
 
         #endregion
 
-        #region second
+        #region resolve
 
         _CommandBuffer.GetTemporaryRT(ShaderConstants._ResultRT, _Camera.pixelWidth, _Camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
 
@@ -185,6 +196,10 @@ public class SSPR : MonoBehaviour
     Material _SSPRBlendMat = null;
 
     //===serial data
+    [SerializeField]
+    float _threshlod = 0.0f;
+    [SerializeField]
+    float _intensity = 0.0f;
     [SerializeField]
     float _height = 0.0f;
     [SerializeField]
