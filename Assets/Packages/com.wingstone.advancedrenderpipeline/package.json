@@ -1,0 +1,24 @@
+{
+  "name": "com.wingstone.advancedrenderpipeline",
+  "version": "0.0.1",
+  "displayName": "Advanced render pipeline",
+  "description": "Custom advanced render pipeline",
+  "unity": "2019.4",
+  "unityRelease": "17f1",
+  "documentationUrl": "https://example.com/",
+  "dependencies": {
+    "com.unity.render-pipelines.core": "7.3.1",
+    "com.unity.shadergraph": "7.3.1"
+  },
+  "keywords": [
+    "graphics",
+    "performance",
+    "rendering",
+    "render",
+    "pipeline"
+  ],
+  "author": {
+    "name": "wingstone",
+    "url": "https://github.com/wingstone"
+  }
+}

@@ -24,18 +24,17 @@
       "url": "https://packages.unity.cn"
     },
     "com.unity.ide.vscode": {
-      "version": "1.2.3",
+      "version": "1.2.5",
       "depth": 0,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.cn"
     },
     "com.unity.postprocessing": {
-      "version": "3.0.1",
+      "version": "file:com.unity.postprocessing@3.0.1",
       "depth": 0,
-      "source": "registry",
-      "dependencies": {},
-      "url": "https://packages.unity.cn"
+      "source": "embedded",
+      "dependencies": {}
     },
     "com.unity.render-pipelines.core": {
       "version": "7.3.1",
@@ -45,6 +44,23 @@
         "com.unity.ugui": "1.0.0"
       },
       "url": "https://packages.unity.cn"
+    },
+    "com.unity.render-pipelines.universal": {
+      "version": "file:com.unity.render-pipelines.universal@7.3.1",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.render-pipelines.core": "7.3.1",
+        "com.unity.shadergraph": "7.3.1"
+      }
+    },
+    "com.unity.shadergraph": {
+      "version": "file:com.unity.shadergraph@7.3.1",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.render-pipelines.core": "7.3.1"
+      }
     },
     "com.unity.test-framework": {
       "version": "1.1.19",
@@ -64,6 +80,15 @@
       "dependencies": {
         "com.unity.modules.ui": "1.0.0",
         "com.unity.modules.imgui": "1.0.0"
+      }
+    },
+    "com.wingstone.advancedrenderpipeline": {
+      "version": "file:../Assets/Packages/com.wingstone.advancedrenderpipeline",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {
+        "com.unity.render-pipelines.core": "7.3.1",
+        "com.unity.shadergraph": "7.3.1"
       }
     },
     "com.unity.modules.ai": {
