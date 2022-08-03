@@ -13,4 +13,7 @@ MonoBehaviour:
   m_Name: PipelineAsset
   m_EditorClassIdentifier: 
   _ShadowResolution: 1024
+  _ShadowDistance: 23.7
+  _ShadowDepthBias: 0.1
+  _ShadowBorderFadeLength: 2
   _ShadowMat: {fileID: 2100000, guid: 05a2635c3c936d840a89e14fdcb592f4, type: 2}

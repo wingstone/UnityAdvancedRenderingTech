@@ -8,9 +8,12 @@ namespace ARP
     public class PipelineAsset : RenderPipelineAsset
     {
         //==data
+        [Header("ShadowSetting")]
         [Range(512, 2048)]
         public int _ShadowResolution = 1024;
         public float _ShadowDistance = 100f;
+        public float _ShadowDepthBias = 0.1f;
+        public float _ShadowBorderFadeLength = 3f;
 
         //== resources
         public Material _ShadowMat = null;

@@ -19,12 +19,21 @@ namespace ARP
         class ShaderConstants
         {
             public static readonly ShaderTagId _passTagRender = new ShaderTagId("ARP");
-            public static readonly ShaderTagId _passTagDepth = new ShaderTagId("Depth");
+            public static readonly ShaderTagId _passTagDepth = new ShaderTagId("DepthOnly");
             public static readonly ShaderTagId _passTagShadowCaster = new ShaderTagId("ShadowCaster");
-            public static readonly int _Depth = Shader.PropertyToID("_CameraDepthTexture");
             public static readonly int _ShadowMap = Shader.PropertyToID("_ShadowMap");
             public static readonly int _ShadowMapTex = Shader.PropertyToID("_ShadowMapTexture");
+            public static readonly int _ColorAttatchment = Shader.PropertyToID("_ColorAttatchment");
+            public static readonly int _DepthAttatchment = Shader.PropertyToID("_DepthAttatchment");
+            public static readonly int _DepthTexture = Shader.PropertyToID("_DepthTexture");
+
+            public static readonly int _ShadowMatrix = Shader.PropertyToID("_ShadowMatrix");
+            public static readonly int _MainLightDirection = Shader.PropertyToID("_MainLightDirection");
+            public static readonly int _ShadowDepthBias = Shader.PropertyToID("_ShadowDepthBias");
+            public static readonly int _ShadowSphere = Shader.PropertyToID("_ShadowSphere");
+            public static readonly int _ShadowBorderFadeLength = Shader.PropertyToID("_ShadowBorderFadeLength");
         }
+
         private PipelineAsset pipelineAsset;
 
         public AdvancedRenderPipeline(PipelineAsset asset)
@@ -63,9 +72,9 @@ namespace ARP
             {
                 RenderShadowMap(context, cullingResults, camera, pipelineAsset._ShadowResolution);
 
-                RenderDepthMap(context, cullingResults, camera);
-
                 RenderLight(context, cullingResults, camera);
+
+                RenderFinalBlit(context, cullingResults, camera);
             }
 
             context.Submit();
@@ -92,19 +101,23 @@ namespace ARP
             int mainLight = GetMainLight(culling);
             if (mainLight == -1) return;
 
-            CommandBuffer shadowmapCmd = CommandBufferPool.Get("RenderShadowMap");
-            RenderTextureDescriptor shadowmapDesc = new RenderTextureDescriptor(shadowResolution, shadowResolution, RenderTextureFormat.Shadowmap, 32);
+            Bounds bounds = new Bounds();
+            if (!culling.GetShadowCasterBounds(mainLight, out bounds)) return;
 
-            shadowmapCmd.GetTemporaryRT(ShaderConstants._ShadowMap, shadowmapDesc);
+            CommandBuffer shadowmapCmd = CommandBufferPool.Get("RenderShadowMap");
+            RenderTextureDescriptor shadowmapDesc = new RenderTextureDescriptor(shadowResolution, shadowResolution, RenderTextureFormat.Shadowmap, 16);
+
+            shadowmapCmd.GetTemporaryRT(ShaderConstants._ShadowMap, shadowmapDesc, FilterMode.Bilinear);
             shadowmapCmd.SetRenderTarget(ShaderConstants._ShadowMap);
-            shadowmapCmd.ClearRenderTarget(true, true, Color.black);
+            shadowmapCmd.ClearRenderTarget(true, true, Color.white);
 
             // get matrix
             Matrix4x4 viewMat, projMat;
             ShadowSplitData splitData = new ShadowSplitData();
-            culling.ComputeDirectionalShadowMatricesAndCullingPrimitives(mainLight, 0, 1, Vector3.one, shadowResolution, 0, out viewMat, out projMat, out splitData);
-            shadowmapCmd.SetViewMatrix(viewMat);
-            shadowmapCmd.SetProjectionMatrix(projMat);
+            culling.ComputeDirectionalShadowMatricesAndCullingPrimitives(mainLight, 0, 1, Vector3.one, shadowResolution, 1f, out viewMat, out projMat, out splitData);
+
+            Vector3 lightDir = culling.visibleLights[mainLight].localToWorldMatrix.MultiplyVector(-Vector3.forward);
+            SetShadowSetting(viewMat, projMat, lightDir, splitData.cullingSphere, shadowmapCmd);
 
             context.ExecuteCommandBuffer(shadowmapCmd);
             CommandBufferPool.Release(shadowmapCmd);
@@ -116,37 +129,32 @@ namespace ARP
             context.DrawShadows(ref shadowDrawingSettings);
         }
 
-        private void RenderDepthMap(ScriptableRenderContext context, CullingResults culling, Camera camera)
-        {
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
-
-            CommandBuffer depthCmd = CommandBufferPool.Get("RenderDepthMap");
-            RenderTextureDescriptor depthDesc = new RenderTextureDescriptor(width, height, RenderTextureFormat.Depth, 32);
-
-            depthCmd.GetTemporaryRT(ShaderConstants._Depth, depthDesc);
-            depthCmd.SetRenderTarget(ShaderConstants._Depth);
-            depthCmd.ClearRenderTarget(true, true, Color.black);
-            context.ExecuteCommandBuffer(depthCmd);
-            CommandBufferPool.Release(depthCmd);
-
-
-            SortingSettings sortingSettings = new SortingSettings(camera);
-            DrawingSettings drawingSettings = new DrawingSettings(ShaderConstants._passTagDepth, sortingSettings);
-            FilteringSettings filteringSettings = new FilteringSettings();
-
-            context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
-        }
-
         private void RenderLight(ScriptableRenderContext context, CullingResults culling, Camera camera)
         {
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
 
-            CommandBuffer cmd = CommandBufferPool.Get();
+            CommandBuffer cmd = CommandBufferPool.Get("RenderLight");
+
+            // get color attatchment and depth attatchment
+            RenderTextureDescriptor colorDesc = new RenderTextureDescriptor(width, height, RenderTextureFormat.ARGB32, 24);
+            RenderTextureDescriptor depthDesc = new RenderTextureDescriptor(width, height, RenderTextureFormat.Depth, 16);
+
+            cmd.GetTemporaryRT(ShaderConstants._ColorAttatchment, colorDesc);
+            cmd.GetTemporaryRT(ShaderConstants._DepthAttatchment, depthDesc);
+            cmd.SetRenderTarget((RenderTargetIdentifier)ShaderConstants._ColorAttatchment, (RenderTargetIdentifier)ShaderConstants._DepthAttatchment);
+            cmd.ClearRenderTarget(true, true, Color.black);
 
             //Camera setup some builtin variables e.g. camera projection matrices etc
             context.SetupCameraProperties(camera);
+
+            // set shadow map
+            cmd.SetGlobalTexture(ShaderConstants._ShadowMapTex, ShaderConstants._ShadowMap);
+
+            // set main light vector
+            int mainLight = GetMainLight(culling);
+            Vector3 lightDir = culling.visibleLights[mainLight].localToWorldMatrix.MultiplyVector(-Vector3.forward);
+            cmd.SetGlobalVector(ShaderConstants._MainLightDirection, lightDir);
 
             //Get the setting from camera component
             bool drawSkyBox = camera.clearFlags == CameraClearFlags.Skybox ? true : false;
@@ -189,11 +197,44 @@ namespace ARP
             int height = camera.pixelHeight;
 
             CommandBuffer shadowCmd = CommandBufferPool.Get("RenderShadow");
+
             shadowCmd.SetGlobalTexture(ShaderConstants._ShadowMapTex, ShaderConstants._ShadowMap);
-            shadowCmd.Blit(ShaderConstants._Depth, BuiltinRenderTextureType.CameraTarget, pipelineAsset._ShadowMat);
+            shadowCmd.SetGlobalTexture(ShaderConstants._DepthTexture, ShaderConstants._DepthAttatchment);
+            shadowCmd.Blit(null, BuiltinRenderTextureType.CameraTarget, pipelineAsset._ShadowMat);
 
             context.ExecuteCommandBuffer(shadowCmd);
             CommandBufferPool.Release(shadowCmd);
+        }
+
+        private void RenderFinalBlit(ScriptableRenderContext context, CullingResults culling, Camera camera)
+        {
+            int width = camera.pixelWidth;
+            int height = camera.pixelHeight;
+
+            CommandBuffer shadowCmd = CommandBufferPool.Get("RenderFinalBlit");
+
+            shadowCmd.Blit(ShaderConstants._ColorAttatchment, BuiltinRenderTextureType.CameraTarget);
+
+            context.ExecuteCommandBuffer(shadowCmd);
+            CommandBufferPool.Release(shadowCmd);
+        }
+
+        private void SetShadowSetting(Matrix4x4 view, Matrix4x4 proj, Vector3 lightDir, Vector4 shadowSphere, CommandBuffer cmd)
+        {
+            cmd.SetViewProjectionMatrices(view, proj);
+            Matrix4x4 m = proj * view;
+            if (SystemInfo.usesReversedZBuffer)
+            {
+                m.m20 = -m.m20;
+                m.m21 = -m.m21;
+                m.m22 = -m.m22;
+                m.m23 = -m.m23;
+            }
+            cmd.SetGlobalMatrix(ShaderConstants._ShadowMatrix, m);
+            cmd.SetGlobalFloat(ShaderConstants._ShadowDepthBias, pipelineAsset._ShadowDepthBias);
+            cmd.SetGlobalFloat(ShaderConstants._ShadowBorderFadeLength, pipelineAsset._ShadowBorderFadeLength);
+            cmd.SetGlobalVector(ShaderConstants._MainLightDirection, lightDir);
+            cmd.SetGlobalVector(ShaderConstants._ShadowSphere, shadowSphere);
         }
     }
 }
