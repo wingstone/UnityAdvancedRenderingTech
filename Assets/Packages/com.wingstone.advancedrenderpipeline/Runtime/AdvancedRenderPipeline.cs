@@ -27,11 +27,18 @@ namespace ARP
             public static readonly int _DepthAttatchment = Shader.PropertyToID("_DepthAttatchment");
             public static readonly int _DepthTexture = Shader.PropertyToID("_DepthTexture");
 
-            public static readonly int _ShadowMatrix = Shader.PropertyToID("_ShadowMatrix");
             public static readonly int _MainLightDirection = Shader.PropertyToID("_MainLightDirection");
             public static readonly int _ShadowDepthBias = Shader.PropertyToID("_ShadowDepthBias");
-            public static readonly int _ShadowSphere = Shader.PropertyToID("_ShadowSphere");
             public static readonly int _ShadowBorderFadeLength = Shader.PropertyToID("_ShadowBorderFadeLength");
+            public static readonly int _ShadowMatrixArray = Shader.PropertyToID("_ShadowMatrixArray");
+            public static readonly int _ShadowSphereArray = Shader.PropertyToID("_ShadowSphereArray");
+        }
+
+        struct CascadeData
+        {
+            public Matrix4x4 view;
+            public Matrix4x4 proj;
+            public ShadowSplitData splitdata;
         }
 
         private PipelineAsset pipelineAsset;
@@ -85,6 +92,7 @@ namespace ARP
             EndCameraRendering(context, camera);
         }
 
+        // main directional light
         int GetMainLight(CullingResults cullings)
         {
             for (int i = 0; i < cullings.visibleLights.Length; i++)
@@ -111,21 +119,57 @@ namespace ARP
             shadowmapCmd.SetRenderTarget(ShaderConstants._ShadowMap);
             shadowmapCmd.ClearRenderTarget(true, true, Color.white);
 
-            // get matrix
-            Matrix4x4 viewMat, projMat;
-            ShadowSplitData splitData = new ShadowSplitData();
-            culling.ComputeDirectionalShadowMatricesAndCullingPrimitives(mainLight, 0, 1, Vector3.one, shadowResolution, 1f, out viewMat, out projMat, out splitData);
-
-            Vector3 lightDir = culling.visibleLights[mainLight].localToWorldMatrix.MultiplyVector(-Vector3.forward);
-            SetShadowSetting(viewMat, projMat, lightDir, splitData.cullingSphere, shadowmapCmd);
-
             context.ExecuteCommandBuffer(shadowmapCmd);
+            shadowmapCmd.Clear();
+
+            // get cascade data
+            Vector3 cascadeSplitRatio = new Vector3(pipelineAsset.split0, pipelineAsset.split1, pipelineAsset.split2);
+            int cascadeResolution = shadowResolution / 2;
+            CascadeData[] cascadeDatas = new CascadeData[4];
+            Vector3 lightDir = culling.visibleLights[mainLight].localToWorldMatrix.MultiplyVector(-Vector3.forward);
+
+            for (int i = 0; i < 4; i++)
+            {
+                culling.ComputeDirectionalShadowMatricesAndCullingPrimitives(mainLight, i, 4, cascadeSplitRatio, cascadeResolution, 1f, out cascadeDatas[i].view, out cascadeDatas[i].proj, out cascadeDatas[i].splitdata);
+
+                SetShadowCasterConstant(context, lightDir, cascadeDatas[i], shadowmapCmd, cascadeResolution);
+
+                Rect viewport = GetViewport(i, cascadeResolution);
+                RenderCascadeShadow(context, culling, camera, cascadeDatas[i], viewport, shadowmapCmd);
+            }
+
+            SetShadowSetting(context, cascadeDatas, shadowmapCmd);
+
             CommandBufferPool.Release(shadowmapCmd);
+        }
 
-            ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(culling, mainLight);
-            shadowDrawingSettings.splitData = splitData;
+        private Rect GetViewport(int index, int cascaderesolution)
+        {
+            Vector2Int offset = new Vector2Int(index % 2, index / 2);
+            return new Rect(offset.x * cascaderesolution, offset.y * cascaderesolution, cascaderesolution, cascaderesolution);
+        }
+
+        private void SetShadowCasterConstant(ScriptableRenderContext context,Vector3 lightDir, CascadeData cascadeData, CommandBuffer cmd, float cascadeResolution)
+        {
+            float frustumSize = 2.0f / cascadeData.proj.m00;
+            float depthBias = frustumSize / cascadeResolution * pipelineAsset._ShadowDepthBias;
+            cmd.SetGlobalFloat(ShaderConstants._ShadowDepthBias, depthBias);
+            cmd.SetGlobalVector(ShaderConstants._MainLightDirection, lightDir);
+            context.ExecuteCommandBuffer(cmd);
+            cmd.Clear();
+        }
+
+        private void RenderCascadeShadow(ScriptableRenderContext context, CullingResults cullingResults, Camera camera, CascadeData cascadeData, Rect viewport, CommandBuffer shadowmapCmd)
+        {
+            shadowmapCmd.SetViewProjectionMatrices(cascadeData.view, cascadeData.proj);
+            shadowmapCmd.SetViewport(viewport);
+            context.ExecuteCommandBuffer(shadowmapCmd);
+            shadowmapCmd.Clear();
+
+            int mainLight = GetMainLight(cullingResults);
+            ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, mainLight);
+            shadowDrawingSettings.splitData = cascadeData.splitdata;
             shadowDrawingSettings.useRenderingLayerMaskTest = true;
-
             context.DrawShadows(ref shadowDrawingSettings);
         }
 
@@ -191,20 +235,20 @@ namespace ARP
             context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
         }
 
-        private void RenderShadow(ScriptableRenderContext context, CullingResults culling, Camera camera)
-        {
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
+        // private void RenderShadow(ScriptableRenderContext context, CullingResults culling, Camera camera)
+        // {
+        //     int width = camera.pixelWidth;
+        //     int height = camera.pixelHeight;
 
-            CommandBuffer shadowCmd = CommandBufferPool.Get("RenderShadow");
+        //     CommandBuffer shadowCmd = CommandBufferPool.Get("RenderShadow");
 
-            shadowCmd.SetGlobalTexture(ShaderConstants._ShadowMapTex, ShaderConstants._ShadowMap);
-            shadowCmd.SetGlobalTexture(ShaderConstants._DepthTexture, ShaderConstants._DepthAttatchment);
-            shadowCmd.Blit(null, BuiltinRenderTextureType.CameraTarget, pipelineAsset._ShadowMat);
+        //     shadowCmd.SetGlobalTexture(ShaderConstants._ShadowMapTex, ShaderConstants._ShadowMap);
+        //     shadowCmd.SetGlobalTexture(ShaderConstants._DepthTexture, ShaderConstants._DepthAttatchment);
+        //     shadowCmd.Blit(null, BuiltinRenderTextureType.CameraTarget, pipelineAsset._ShadowMat);
 
-            context.ExecuteCommandBuffer(shadowCmd);
-            CommandBufferPool.Release(shadowCmd);
-        }
+        //     context.ExecuteCommandBuffer(shadowCmd);
+        //     CommandBufferPool.Release(shadowCmd);
+        // }
 
         private void RenderFinalBlit(ScriptableRenderContext context, CullingResults culling, Camera camera)
         {
@@ -219,22 +263,44 @@ namespace ARP
             CommandBufferPool.Release(shadowCmd);
         }
 
-        private void SetShadowSetting(Matrix4x4 view, Matrix4x4 proj, Vector3 lightDir, Vector4 shadowSphere, CommandBuffer cmd)
+        private void SetShadowSetting(ScriptableRenderContext context, CascadeData[] cascadeDatas, CommandBuffer cmd)
         {
-            cmd.SetViewProjectionMatrices(view, proj);
-            Matrix4x4 m = proj * view;
-            if (SystemInfo.usesReversedZBuffer)
+            int cascadeResolution = pipelineAsset._ShadowResolution / 2;
+
+            Matrix4x4[] m = new Matrix4x4[4];
+            float[] depthBias = new float[4];
+            Vector4[] shadowSphere = new Vector4[4];
+            for (int i = 0; i < 4; i++)
             {
-                m.m20 = -m.m20;
-                m.m21 = -m.m21;
-                m.m22 = -m.m22;
-                m.m23 = -m.m23;
+                m[i] = cascadeDatas[i].proj * cascadeDatas[i].view;
+                if (SystemInfo.usesReversedZBuffer)
+                {
+                    m[i].m20 = -m[i].m20;
+                    m[i].m21 = -m[i].m21;
+                    m[i].m22 = -m[i].m22;
+                    m[i].m23 = -m[i].m23;
+                }
+
+                Matrix4x4 normalizeMat = new Matrix4x4(new Vector4(0.25f, 0.0f, 0.0f, 0.25f),
+                                                    new Vector4(0.0f, 0.25f, 0.0f, 0.25f),
+                                                    new Vector4(0.0f, 0.0f, 0.5f, 0.5f),
+                                                    new Vector4(0.0f, 0.0f, 0.0f, 1.0f));
+                Vector2 offset = new Vector2(i % 2, i / 2) * 0.5f;
+                Matrix4x4 offsetMat = new Matrix4x4(new Vector4(1f, 0.0f, 0.0f, offset.x),
+                                                    new Vector4(0.0f, 1f, 0.0f, offset.y),
+                                                    new Vector4(0.0f, 0.0f, 1.0f, 0.0f),
+                                                    new Vector4(0.0f, 0.0f, 0.0f, 1.0f));
+                m[i] = offsetMat.transpose * normalizeMat.transpose * m[i];
+                shadowSphere[i] = cascadeDatas[i].splitdata.cullingSphere;
             }
-            cmd.SetGlobalMatrix(ShaderConstants._ShadowMatrix, m);
-            cmd.SetGlobalFloat(ShaderConstants._ShadowDepthBias, pipelineAsset._ShadowDepthBias);
+
+            cmd.SetGlobalMatrixArray(ShaderConstants._ShadowMatrixArray, m);
+            cmd.SetGlobalVectorArray(ShaderConstants._ShadowSphereArray, shadowSphere);
+
             cmd.SetGlobalFloat(ShaderConstants._ShadowBorderFadeLength, pipelineAsset._ShadowBorderFadeLength);
-            cmd.SetGlobalVector(ShaderConstants._MainLightDirection, lightDir);
-            cmd.SetGlobalVector(ShaderConstants._ShadowSphere, shadowSphere);
+
+            context.ExecuteCommandBuffer(cmd);
+            cmd.Clear();
         }
     }
 }

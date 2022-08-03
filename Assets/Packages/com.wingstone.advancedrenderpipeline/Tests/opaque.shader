@@ -47,9 +47,9 @@ Shader "ARP/Opaque"
             CBUFFER_END
 
             
-            float4x4 _ShadowMatrix;
+            float4 _ShadowSphereArray[4];
+            float4x4 _ShadowMatrixArray[4];
             float3 _MainLightDirection;
-            float4 _ShadowSphere;
             float _ShadowBorderFadeLength;
             TEXTURE2D_SHADOW(_ShadowMapTexture);               SAMPLER_CMP(sampler_linear_clamp_compare);
 
@@ -67,11 +67,25 @@ Shader "ARP/Opaque"
             {
                 float3 normal = normalize(i.normal);
                 float diffuse = saturate(dot(normal, _MainLightDirection));
-                float3 posSTS = mul(_ShadowMatrix, i.worldPos).xyz * 0.5 + 0.5;
+
+                int casacdeID = 0;
+                for(int n = 0; n < 4; n++)
+                {
+                    if(distance(_ShadowSphereArray[n].xyz, i.worldPos.xyz) < _ShadowSphereArray[n].w)
+                     {
+                        casacdeID = n;
+                        break;
+                     }
+                }
                 
-                float attantion = SAMPLE_TEXTURE2D_SHADOW(_ShadowMapTexture, sampler_linear_clamp_compare, posSTS).r;
+                float3 posSTS = mul(_ShadowMatrixArray[casacdeID], i.worldPos).xyz;
+
+                float attantion = SAMPLE_TEXTURE2D_SHADOW(_ShadowMapTexture, sampler_linear_clamp_compare, posSTS);
+
                 if(posSTS.z >= 0.999 || posSTS.z <=0.001) attantion = 1;
-                float fadeAtten = saturate( (distance(_ShadowSphere.xyz, i.worldPos) - _ShadowSphere.w) / _ShadowBorderFadeLength );
+
+                float fadeAtten = saturate( (distance(_ShadowSphereArray[3].xyz, i.worldPos) - _ShadowSphereArray[3].w) / _ShadowBorderFadeLength + 1 );
+
                 attantion = max(attantion, fadeAtten);
                 
 
