@@ -26,10 +26,12 @@ namespace ARP
             public static readonly int _ColorAttatchment = Shader.PropertyToID("_ColorAttatchment");
             public static readonly int _DepthAttatchment = Shader.PropertyToID("_DepthAttatchment");
             public static readonly int _DepthTexture = Shader.PropertyToID("_DepthTexture");
-
+            
             public static readonly int _MainLightDirection = Shader.PropertyToID("_MainLightDirection");
             public static readonly int _ShadowDepthBias = Shader.PropertyToID("_ShadowDepthBias");
             public static readonly int _ShadowBorderFadeLength = Shader.PropertyToID("_ShadowBorderFadeLength");
+            public static readonly int _ShadowBlendLenth = Shader.PropertyToID("_ShadowBlendLenth");
+            public static readonly int _ShadowMapTextureSize = Shader.PropertyToID("_ShadowMapTextureSize");
             public static readonly int _ShadowMatrixArray = Shader.PropertyToID("_ShadowMatrixArray");
             public static readonly int _ShadowSphereArray = Shader.PropertyToID("_ShadowSphereArray");
         }
@@ -123,7 +125,7 @@ namespace ARP
             shadowmapCmd.Clear();
 
             // get cascade data
-            Vector3 cascadeSplitRatio = new Vector3(pipelineAsset.split0, pipelineAsset.split1, pipelineAsset.split2);
+            Vector3 cascadeSplitRatio = new Vector3(pipelineAsset._Split0, pipelineAsset._Split1, pipelineAsset._Split2);
             int cascadeResolution = shadowResolution / 2;
             CascadeData[] cascadeDatas = new CascadeData[4];
             Vector3 lightDir = culling.visibleLights[mainLight].localToWorldMatrix.MultiplyVector(-Vector3.forward);
@@ -149,7 +151,7 @@ namespace ARP
             return new Rect(offset.x * cascaderesolution, offset.y * cascaderesolution, cascaderesolution, cascaderesolution);
         }
 
-        private void SetShadowCasterConstant(ScriptableRenderContext context,Vector3 lightDir, CascadeData cascadeData, CommandBuffer cmd, float cascadeResolution)
+        private void SetShadowCasterConstant(ScriptableRenderContext context, Vector3 lightDir, CascadeData cascadeData, CommandBuffer cmd, float cascadeResolution)
         {
             float frustumSize = 2.0f / cascadeData.proj.m00;
             float depthBias = frustumSize / cascadeResolution * pipelineAsset._ShadowDepthBias;
@@ -190,6 +192,14 @@ namespace ARP
             cmd.ClearRenderTarget(true, true, Color.black);
 
             //Camera setup some builtin variables e.g. camera projection matrices etc
+            /// Configure shader variables and other unity properties that are required for rendering.
+            /// * Setup Camera RenderTarget and Viewport
+            /// * VR Camera Setup and SINGLE_PASS_STEREO props
+            /// * Setup camera view, projection and their inverse matrices.
+            /// * Setup properties: _WorldSpaceCameraPos, _ProjectionParams, _ScreenParams, _ZBufferParams, unity_OrthoParams
+            /// * Setup camera world clip planes properties
+            /// * Setup HDR keyword
+            /// * Setup global time properties (_Time, _SinTime, _CosTime)
             context.SetupCameraProperties(camera);
 
             // set shadow map
@@ -265,7 +275,7 @@ namespace ARP
 
         private void SetShadowSetting(ScriptableRenderContext context, CascadeData[] cascadeDatas, CommandBuffer cmd)
         {
-            int cascadeResolution = pipelineAsset._ShadowResolution / 2;
+            int shadowResolution = pipelineAsset._ShadowResolution;
 
             Matrix4x4[] m = new Matrix4x4[4];
             float[] depthBias = new float[4];
@@ -294,10 +304,33 @@ namespace ARP
                 shadowSphere[i] = cascadeDatas[i].splitdata.cullingSphere;
             }
 
+            switch (pipelineAsset._blendMethod)
+            {
+                case ShadowBlendEnum.NoBlend:
+                    cmd.EnableShaderKeyword("CASCADE_NOBLEND");
+                    cmd.DisableShaderKeyword("CASCADE_BLEND");
+                    cmd.DisableShaderKeyword("CASCADE_DITHER");
+                    break;
+                case ShadowBlendEnum.Blend:
+                    cmd.EnableShaderKeyword("CASCADE_BLEND");
+                    cmd.DisableShaderKeyword("CASCADE_NOBLEND");
+                    cmd.DisableShaderKeyword("CASCADE_DITHER");
+                    break;
+                case ShadowBlendEnum.Dither:
+                    cmd.EnableShaderKeyword("CASCADE_DITHER");
+                    cmd.DisableShaderKeyword("CASCADE_NOBLEND");
+                    cmd.DisableShaderKeyword("CASCADE_BLEND");
+                    break;
+                default:
+                    break;
+            }
+
             cmd.SetGlobalMatrixArray(ShaderConstants._ShadowMatrixArray, m);
             cmd.SetGlobalVectorArray(ShaderConstants._ShadowSphereArray, shadowSphere);
 
             cmd.SetGlobalFloat(ShaderConstants._ShadowBorderFadeLength, pipelineAsset._ShadowBorderFadeLength);
+            cmd.SetGlobalVector(ShaderConstants._ShadowMapTextureSize, new Vector4(1f / shadowResolution, 1f / shadowResolution, shadowResolution, shadowResolution));
+            cmd.SetGlobalFloat(ShaderConstants._ShadowBlendLenth, pipelineAsset._ShadowBlendLenth);
 
             context.ExecuteCommandBuffer(cmd);
             cmd.Clear();
