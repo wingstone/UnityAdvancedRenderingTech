@@ -14,12 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _ShadowResolutioinEnum: 2
   _ShadowResolution: 2048
-  _ShadowDistance: 300
+  _ShadowDistance: 100
   _ShadowDepthBias: 10
   _ShadowBorderFadeLength: 19.2
   _Split0: 0.1
   _Split1: 0.25
   _Split2: 0.5
-  _ShadowBlendLenth: 1
+  _ShadowBlendLenth: 0.59
   _blendMethod: 2
   _ShadowMat: {fileID: 2100000, guid: 05a2635c3c936d840a89e14fdcb592f4, type: 2}

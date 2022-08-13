@@ -26,7 +26,7 @@ namespace ARP
             public static readonly int _ColorAttatchment = Shader.PropertyToID("_ColorAttatchment");
             public static readonly int _DepthAttatchment = Shader.PropertyToID("_DepthAttatchment");
             public static readonly int _DepthTexture = Shader.PropertyToID("_DepthTexture");
-            
+
             public static readonly int _MainLightDirection = Shader.PropertyToID("_MainLightDirection");
             public static readonly int _ShadowDepthBias = Shader.PropertyToID("_ShadowDepthBias");
             public static readonly int _ShadowBorderFadeLength = Shader.PropertyToID("_ShadowBorderFadeLength");
@@ -34,6 +34,8 @@ namespace ARP
             public static readonly int _ShadowMapTextureSize = Shader.PropertyToID("_ShadowMapTextureSize");
             public static readonly int _ShadowMatrixArray = Shader.PropertyToID("_ShadowMatrixArray");
             public static readonly int _ShadowSphereArray = Shader.PropertyToID("_ShadowSphereArray");
+
+            public static readonly int _ScreenPramaters = Shader.PropertyToID("_ScreenPramaters");
         }
 
         struct CascadeData
@@ -175,6 +177,13 @@ namespace ARP
             context.DrawShadows(ref shadowDrawingSettings);
         }
 
+        private void SetCameraConstants(ScriptableRenderContext context, Camera camera, CommandBuffer cmd)
+        {
+            int width = camera.pixelWidth;
+            int height = camera.pixelHeight;
+            cmd.SetGlobalVector(ShaderConstants._ScreenPramaters, new Vector4(1 / width, 1 / height, width, height));
+        }
+
         private void RenderLight(ScriptableRenderContext context, CullingResults culling, Camera camera)
         {
             int width = camera.pixelWidth;
@@ -201,6 +210,7 @@ namespace ARP
             /// * Setup HDR keyword
             /// * Setup global time properties (_Time, _SinTime, _CosTime)
             context.SetupCameraProperties(camera);
+            SetCameraConstants(context, camera, cmd);
 
             // set shadow map
             cmd.SetGlobalTexture(ShaderConstants._ShadowMapTex, ShaderConstants._ShadowMap);
