@@ -277,7 +277,16 @@ namespace ARP
 
             CommandBuffer shadowCmd = CommandBufferPool.Get("RenderFinalBlit");
 
-            shadowCmd.Blit(ShaderConstants._ColorAttatchment, BuiltinRenderTextureType.CameraTarget);
+            if(SystemInfo.graphicsUVStartsAtTop && camera.cameraType == CameraType.SceneView)
+            {
+                shadowCmd.EnableShaderKeyword("_UVStartAtUp");
+            }
+            else
+            {
+                shadowCmd.DisableShaderKeyword("_UVStartAtUp");
+            }
+
+            shadowCmd.Blit(ShaderConstants._ColorAttatchment, BuiltinRenderTextureType.CameraTarget, pipelineAsset._FinalBlitMat);
 
             context.ExecuteCommandBuffer(shadowCmd);
             CommandBufferPool.Release(shadowCmd);

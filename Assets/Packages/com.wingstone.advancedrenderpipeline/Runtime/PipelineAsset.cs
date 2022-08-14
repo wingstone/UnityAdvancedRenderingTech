@@ -45,6 +45,7 @@ namespace ARP
 
         //== resources
         public Material _ShadowMat = null;
+        public Material _FinalBlitMat = null;
 
 #if UNITY_EDITOR
         [UnityEditor.MenuItem("Assets/Create/AdvancedRenderPipeline/PipelineAsset", priority = 0)]

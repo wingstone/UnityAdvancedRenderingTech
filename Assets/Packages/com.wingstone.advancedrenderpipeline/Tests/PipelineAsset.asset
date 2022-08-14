@@ -23,3 +23,4 @@ MonoBehaviour:
   _ShadowBlendLenth: 0.59
   _blendMethod: 2
   _ShadowMat: {fileID: 2100000, guid: 05a2635c3c936d840a89e14fdcb592f4, type: 2}
+  _FinalBlitMat: {fileID: 2100000, guid: 88928d21a3cc87a43af5a21357556396, type: 2}
