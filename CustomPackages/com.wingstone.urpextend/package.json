@@ -1,0 +1,23 @@
+{
+  "name": "com.wingstone.urpextend",
+  "version": "0.0.1",
+  "displayName": "Urp Extend",
+  "description": "Urp Extend",
+  "unity": "2021.2",
+  "documentationUrl": "https://example.com/",
+  "dependencies": {
+    "com.unity.render-pipelines.core": "12.1.6",
+    "com.unity.render-pipelines.universal": "12.1.6"
+  },
+  "keywords": [
+    "graphics",
+    "performance",
+    "rendering",
+    "render",
+    "pipeline"
+  ],
+  "author": {
+    "name": "wingstone",
+    "url": "https://github.com/wingstone"
+  }
+}
