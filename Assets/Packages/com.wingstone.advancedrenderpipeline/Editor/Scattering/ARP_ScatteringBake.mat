@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: ARP_Sky
-  m_Shader: {fileID: 4800000, guid: 69e7572280b741d45bedc775a4fcbe06, type: 3}
+  m_Name: ARP_ScatteringBake
+  m_Shader: {fileID: 4800000, guid: 1d2b840067beeab43aa6099afcbcd422, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -19,29 +19,25 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
-    - _MainTex:
+    - _MultiSactteringLut:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SkyViewLut:
-        m_Texture: {fileID: 2800000, guid: a12b6289dced9054e9df0f7236c7a980, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TransmittanceLut:
-        m_Texture: {fileID: 2800000, guid: bc85d31d4ad288e479c66bb73e616cf1, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _TransmittanceTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Floats:
-    - _AtmosphereThicknessM: 1
-    - _AtmosphereThicknessR: 1
-    - _CameraHeight: 0
-    - _LightDirectionPhi: 60
+    - _CameraHeight: 1
+    - _LightDirectionPhi: 30
     - _LightDirectionTheta: 180
+    - _SolarIrradiance: 4.9
     m_Colors:
-    - _GroundColor: {r: 0.36899993, g: 0.34899995, b: 0.3409999, a: 1}
-    - _SkyColor: {r: 1, g: 1, b: 1, a: 0}
-    - _TransmittanceTex_Size: {r: 0.00390625, g: 0.015625, b: 256, a: 64}
+    - _GroundColor: {r: 0, g: 0, b: 0, a: 0}
+    - _MultiSactteringLut_Size: {r: 0.015625, g: 0.015625, b: 64, a: 64}
+    - _SkyViewLutSize: {r: 0.00390625, g: 0.0078125, b: 256, a: 128}
+    - _TransmittanceLut_Size: {r: 0.00390625, g: 0.015625, b: 256, a: 64}

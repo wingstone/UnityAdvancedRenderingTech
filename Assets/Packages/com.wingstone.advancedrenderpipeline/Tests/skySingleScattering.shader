@@ -1,4 +1,4 @@
-﻿Shader "Environment/Sky"
+﻿Shader "ARP/SkySingleScattering"
 {
     Properties
     {
@@ -40,8 +40,8 @@
             static const float ScaleHeightM = 1.2;
             static const float3 ScatterR0 = float3(5.8e-3f, 13.5e-3f, 33.1e-3f);        //Rayleigh 海平面散射系数
             static const float3 ScatterM0 = 21e-3f;                                     // Mie 海平面散射系数
-            static const int NumSample = 16;
-            static const int NumSampleLight = 8;
+            static const int NumSample = 64;
+            static const int NumSampleLight = 16;
 
 
             v2f vert (appdata v)
@@ -114,7 +114,6 @@
                         for (j = 0; j < NumSampleLight; ++j) { 
                             float3 samplePositionLight = samplePosition + (matchingLengthLight + segmentLengthLight * 0.5f) * sunDirection; 
                             float heightLight = length(samplePositionLight) - EarthRadius; 
-                            if (heightLight < 0) break; 
                             opticalDepthLightR += exp(-heightLight / ScaleHeightR) * segmentLengthLight; 
                             opticalDepthLightM += exp(-heightLight / ScaleHeightM) * segmentLengthLight; 
                             matchingLengthLight += segmentLengthLight; 
@@ -126,7 +125,7 @@
                     }
                     matchingLength += segmentLength; 
                 } 
-                
+
                 col = (accumulateInscatterR * phaseR + accumulateInscatterM * phaseM) * 20;
             
                 if(rayHitEarth)
