@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d6ca5e9ebecead418dea05a3fc384a4, type: 3}
+  m_Name: PipelineAsset
+  m_EditorClassIdentifier: 
+  _ShadowResolutioinEnum: 2
+  _ShadowResolution: 2048
+  _ShadowDistance: 100
+  _ShadowDepthBias: 10
+  _ShadowBorderFadeLength: 19.2
+  _Split0: 0.1
+  _Split1: 0.25
+  _Split2: 0.5
+  _ShadowBlendLenth: 0.59
+  _blendMethod: 2
+  _ShadowMat: {fileID: 2100000, guid: 05a2635c3c936d840a89e14fdcb592f4, type: 2}
+  _FinalBlitMat: {fileID: 2100000, guid: 88928d21a3cc87a43af5a21357556396, type: 2}

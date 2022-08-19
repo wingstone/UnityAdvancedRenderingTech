@@ -1,0 +1,81 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel GatherScattering
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture3D<float4> _VolumeScattering;
+Texture2D<float4> _TransmittanceLut;
+
+float4 _TransmittanceLut_Size;
+Texture2D<float4> _MultiSactteringLut;
+float4 _MultiScatteringLut_Size;
+float4 _SkyViewLutSize;
+float _SolarIrradiance;
+
+#define TRANSMITTANCE_TEXTURE_WIDTH _TransmittanceLut_Size.z
+#define TRANSMITTANCE_TEXTURE_HEIGHT _TransmittanceLut_Size.w
+#define SKYVIEW_TEXTURE_WIDTH _SkyViewLutSize.z
+#define SKYVIEW_TEXTURE_HEIGHT _SkyViewLutSize.w
+
+#define Use_GetSingleScattering_NoGround 1
+#include "UnityCG.cginc"
+#include "../function.cginc"
+
+float4 _VolumeSize;
+float3 _CameraPos;
+float4x4 _InverseViewProj;
+float3 _SunDirection;
+
+
+[numthreads(8,8,1)]
+void GatherScattering (uint3 id : SV_DispatchThreadID)
+{
+    AtmosphereParameters atmosphere = (AtmosphereParameters)0;
+
+    //---atmosphere setting
+
+    // 所有距离以km为单位进行推导
+    atmosphere.solar_irradiance = _SolarIrradiance;
+    atmosphere.sun_angular_radius = 1;
+    
+    atmosphere.bottom_radius = 6360;
+    atmosphere.bottom_radius2 = 6360 * 6360;
+    atmosphere.top_radius = 6460;
+    atmosphere.top_radius2 = 6460 * 6460;
+    atmosphere.rayleigh_scattering = float3(5.8e-3f, 13.5e-3f, 33.1e-3f);      //Rayleigh 海平面散射系数
+    atmosphere.mie_scattering = 3.996e-3f;          // Mie 海平面散射系数
+    atmosphere.mie_extinction = 4.4e-3f;            // Mie 海平面消散系数
+    atmosphere.mie_phase_function_g = 0.8;          // Mie phase suntion g
+    atmosphere.absorption_extinction = float3(0.65e-3f, 1.881e-3f, 0.085e-3f);  // Ozone 海平面消散系数
+    atmosphere.scaleHeightR = 8;
+    atmosphere.scaleHeightM = 1.2;
+
+    //---atmosphere setting end
+
+    float3 cameraPos = _CameraPos*1e-3 + float3(0,atmosphere.bottom_radius,0);
+    float3 uvw = id + 0.5f;
+	uvw = uvw / _VolumeSize.xyz;
+    uvw.z = 0.5;
+    
+    float4 tmppos = mul(_InverseViewProj, float4(uvw, 1));
+    float3 worldDir = normalize(tmppos.xyz/tmppos.w - _CameraPos);
+
+    float3 worldPos = cameraPos + worldDir * (id.z+0.5);
+
+    if( length(worldPos.xyz) <= atmosphere.bottom_radius )
+    {
+        worldPos.xyz = atmosphere.bottom_radius*normalize(worldPos.xyz);
+    }
+
+    float3 eyeRay = (worldPos - cameraPos);
+    float ray2voxelLength = length(eyeRay);
+    eyeRay /= ray2voxelLength;
+
+    float3 transmittance = 0;
+    float3 L = 0;
+
+    GetScattering_NoGround(atmosphere, _TransmittanceLut, cameraPos, _SunDirection, eyeRay, ray2voxelLength, _MultiSactteringLut, _MultiScatteringLut_Size, transmittance, L);
+
+    float alpha = dot(transmittance, float3(0.333, 0.333, 0.333));
+    _VolumeScattering[id] = float4(L, alpha);
+}
