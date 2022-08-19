@@ -111,6 +111,7 @@
 
             #include "UnityCG.cginc"
             #include "function.cginc"
+            #include "UnityLightingCommon.cginc"
 
             struct appdata
             {
@@ -151,7 +152,7 @@
                 //---atmosphere setting
 
                 // 所有距离以km为单位进行推导
-                atmosphere.solar_irradiance = _SolarIrradiance;
+                atmosphere.solar_irradiance = _LightColor0.rgb*3.1415926;
                 atmosphere.sun_angular_radius = 1;
                 
                 atmosphere.bottom_radius = 6360;
@@ -169,11 +170,16 @@
                 //---atmosphere setting end
 
                 // sun direction
-                float phi = _LightDirectionPhi/180*UNITY_PI;
-                float theta = _LightDirectionTheta/180*UNITY_PI;
-                float3 sunDirection = float3(-cos(phi), sin(phi), 0);
+                // float phi = _LightDirectionPhi/180*UNITY_PI;
+                // float theta = _LightDirectionTheta/180*UNITY_PI;
+                // float3 sunDirection = float3(-cos(phi), sin(phi), 0);
                 
-                float3 col = RenderSkyViewLut(atmosphere, _TransmittanceLut, _CameraHeight, i.uv, sunDirection, _GroundColor, _MultiSactteringLut, _MultiSactteringLut_Size);
+                float cos_phi = -sqrt(1 - _WorldSpaceLightPos0.y*_WorldSpaceLightPos0.y);
+                float3 sunDirection = float3(cos_phi, _WorldSpaceLightPos0.y, 0);   // 太阳在-x屏幕上旋转
+                
+                float cameraHeight = _WorldSpaceCameraPos.y * 1e-3;
+                // float cameraHeight = length(camerapos);
+                float3 col = RenderSkyViewLut(atmosphere, _TransmittanceLut, cameraHeight, i.uv, sunDirection, _GroundColor, _MultiSactteringLut, _MultiSactteringLut_Size);
 
                 return float4(col, 1);
             }

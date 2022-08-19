@@ -103,10 +103,11 @@ namespace UnityEngine.Rendering.Universal
             int scatterVolumeKernel = scatterVolumeCS.FindKernel("GatherScattering");
             scatterVolumeCS.SetVector("_TransmittanceLut_Size", new Vector4(1f / transMittanceResolution.x, 1f / transMittanceResolution.y, transMittanceResolution.x, transMittanceResolution.y));
             scatterVolumeCS.SetVector("_MultiScatteringLut_Size", new Vector4(1f / multiScatteringResolution.x, 1f / multiScatteringResolution.y, multiScatteringResolution.x, multiScatteringResolution.y));
-            scatterVolumeCS.SetFloat("_SolarIrradiance", scatterMat.GetFloat("_SolarIrradiance"));
+            scatterVolumeCS.SetVector("_SolarIrradiance", renderingData.lightData.visibleLights[0].finalColor);
             scatterVolumeCS.SetVector("_VolumeSize", new Vector4(volumeScatteringResolution.x, volumeScatteringResolution.y, volumeScatteringResolution.z, 0));
             scatterVolumeCS.SetVector("_CameraPos", renderingData.cameraData.camera.transform.position);
-            Matrix4x4 viewproj = renderingData.cameraData.camera.projectionMatrix * renderingData.cameraData.camera.worldToCameraMatrix;
+            var projectionMatrix = GL.GetGPUProjectionMatrix(renderingData.cameraData.camera.projectionMatrix, false);
+            Matrix4x4 viewproj = projectionMatrix * renderingData.cameraData.camera.worldToCameraMatrix;
             scatterVolumeCS.SetMatrix("_InverseViewProj", viewproj.inverse);
 
             float phi = scatterMat.GetFloat("_LightDirectionPhi") / 180 * Mathf.PI;
@@ -114,7 +115,7 @@ namespace UnityEngine.Rendering.Universal
 
             Vector3 sunDirection = new Vector3(Mathf.Cos(phi) * Mathf.Cos(theta), Mathf.Sin(phi), Mathf.Cos(phi) * Mathf.Sin(theta));
             
-            scatterVolumeCS.SetVector("_SunDirection", sunDirection);
+            scatterVolumeCS.SetVector("_SunDirection", -renderingData.lightData.visibleLights[0].light.transform.forward);
 
             cmd.SetComputeTextureParam(scatterVolumeCS, scatterVolumeKernel, "_TransmittanceLut", _TransmittanceLutId);
             cmd.SetComputeTextureParam(scatterVolumeCS, scatterVolumeKernel, "_VolumeScattering", _VolumeScattering);

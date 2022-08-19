@@ -10,15 +10,64 @@ float4 _TransmittanceLut_Size;
 Texture2D<float4> _MultiSactteringLut;
 float4 _MultiScatteringLut_Size;
 float4 _SkyViewLutSize;
-float _SolarIrradiance;
+float3 _SolarIrradiance;
 
 #define TRANSMITTANCE_TEXTURE_WIDTH _TransmittanceLut_Size.z
 #define TRANSMITTANCE_TEXTURE_HEIGHT _TransmittanceLut_Size.w
 #define SKYVIEW_TEXTURE_WIDTH _SkyViewLutSize.z
 #define SKYVIEW_TEXTURE_HEIGHT _SkyViewLutSize.w
 
+// // Include language header
+// #if defined (SHADER_API_GAMECORE)
+// #include "Packages/com.unity.render-pipelines.gamecore/ShaderLibrary/API/GameCore.hlsl"
+// #elif defined(SHADER_API_XBOXONE)
+// #include "Packages/com.unity.render-pipelines.xboxone/ShaderLibrary/API/XBoxOne.hlsl"
+// #elif defined(SHADER_API_PS4)
+// #include "Packages/com.unity.render-pipelines.ps4/ShaderLibrary/API/PSSL.hlsl"
+// #elif defined(SHADER_API_PS5)
+// #include "Packages/com.unity.render-pipelines.ps5/ShaderLibrary/API/PSSL.hlsl"
+// #elif defined(SHADER_API_D3D11)
+// #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/API/D3D11.hlsl"
+// #elif defined(SHADER_API_METAL)
+// #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/API/Metal.hlsl"
+// #elif defined(SHADER_API_VULKAN)
+// #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/API/Vulkan.hlsl"
+// #elif defined(SHADER_API_SWITCH)
+// #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/API/Switch.hlsl"
+// #elif defined(SHADER_API_GLCORE)
+// #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/API/GLCore.hlsl"
+// #elif defined(SHADER_API_GLES3)
+// #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/API/GLES3.hlsl"
+// #elif defined(SHADER_API_GLES)
+// #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/API/GLES2.hlsl"
+// #else
+// #error unsupported shader api
+// #endif
+// #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/API/Validate.hlsl"
+
+// #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Macros.hlsl"
+// #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Random.hlsl"
+
+//             // #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Shadow/ShadowSamplingTent.hlsl"
+
+// TEXTURE2D_SHADOW(_MainLightShadowmapTexture);
+// SAMPLER_CMP(sampler_MainLightShadowmapTexture);
+// float4x4    _MainLightWorldToShadow[1];
+
+// half MainLightRealtimeShadow(float4 shadowCoord)
+// {
+//     return SAMPLE_TEXTURE2D_SHADOW(_MainLightShadowmapTexture, sampler_MainLightShadowmapTexture, shadowCoord.xyz);
+// }
+
+// float4 TransformWorldToShadowCoord(float3 positionWS)
+// {
+//     float4 shadowCoord = mul(_MainLightWorldToShadow[0], float4(positionWS, 1.0));
+//     return float4(shadowCoord.xyz, 0);
+// }
+
 #define Use_GetSingleScattering_NoGround 1
 #include "UnityCG.cginc"
+
 #include "../function.cginc"
 
 float4 _VolumeSize;
@@ -35,7 +84,7 @@ void GatherScattering (uint3 id : SV_DispatchThreadID)
     //---atmosphere setting
 
     // 所有距离以km为单位进行推导
-    atmosphere.solar_irradiance = _SolarIrradiance;
+    atmosphere.solar_irradiance = _SolarIrradiance*3.1415926;
     atmosphere.sun_angular_radius = 1;
     
     atmosphere.bottom_radius = 6360;
@@ -54,13 +103,14 @@ void GatherScattering (uint3 id : SV_DispatchThreadID)
 
     float3 cameraPos = _CameraPos*1e-3 + float3(0,atmosphere.bottom_radius,0);
     float3 uvw = id + 0.5f;
-	uvw = uvw / _VolumeSize.xyz;
+	uvw = uvw / _VolumeSize.xyz*2-1;
     uvw.z = 0.5;
     
     float4 tmppos = mul(_InverseViewProj, float4(uvw, 1));
     float3 worldDir = normalize(tmppos.xyz/tmppos.w - _CameraPos);
 
-    float3 worldPos = cameraPos + worldDir * (id.z+0.5);
+    float3 worldPos = cameraPos + worldDir * SliceToDistance((id.z+0.5)/_VolumeSize.z);
+    // float3 worldPos = cameraPos + worldDir * (id.z+0.5);
 
     if( length(worldPos.xyz) <= atmosphere.bottom_radius )
     {

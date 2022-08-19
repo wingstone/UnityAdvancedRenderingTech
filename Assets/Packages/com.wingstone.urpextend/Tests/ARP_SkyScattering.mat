@@ -23,7 +23,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _CameraHeight: 0
-    - _LightDirectionPhi: 60
+    - _LightDirectionPhi: 16
     - _LightDirectionTheta: 180
     - _SolarIrradiance: 10
     m_Colors:

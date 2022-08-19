@@ -21,7 +21,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _SkyViewLut:
-        m_Texture: {fileID: 2800000, guid: a12b6289dced9054e9df0f7236c7a980, type: 3}
+        m_Texture: {fileID: 2800000, guid: fe9ca512274782f409e6acfcc07670ec, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TransmittanceLut:

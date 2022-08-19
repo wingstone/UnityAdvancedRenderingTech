@@ -51,7 +51,7 @@ float ClampRadius(in AtmosphereParameters atmosphere, float r)
     return clamp(r, atmosphere.bottom_radius, atmosphere.top_radius);
 }
 
-float SafeSqrt(float a) 
+float safeSqrt(float a) 
 {
     return sqrt(max(a, 0));
 }
@@ -64,7 +64,7 @@ float r, float mu)
 
     float discriminant = r * r * (mu * mu - 1.0) +
     atmosphere.top_radius * atmosphere.top_radius;
-    return ClampDistance(-r * mu + SafeSqrt(discriminant));
+    return ClampDistance(-r * mu + safeSqrt(discriminant));
 }
 
 float DistanceToBottomAtmosphereBoundary(in AtmosphereParameters atmosphere,
@@ -75,7 +75,7 @@ float r, float mu)
 
     float discriminant = r * r * (mu * mu - 1.0) +
     atmosphere.bottom_radius * atmosphere.bottom_radius;
-    return ClampDistance(-r * mu - SafeSqrt(discriminant));
+    return ClampDistance(-r * mu - safeSqrt(discriminant));
 }
 
 bool RayIntersectsGround(in AtmosphereParameters atmosphere,
@@ -107,7 +107,7 @@ float r, float mu)
     atmosphere.bottom_radius * atmosphere.bottom_radius);
     
     float rho =
-    SafeSqrt(r * r - atmosphere.bottom_radius * atmosphere.bottom_radius);
+    safeSqrt(r * r - atmosphere.bottom_radius * atmosphere.bottom_radius);
     
     
     float d = DistanceToTopAtmosphereBoundary(atmosphere, r, mu);
@@ -154,14 +154,14 @@ float fromSubUvsToUnit(float u, float resolution) { return (u - 0.5f / resolutio
         // Constrain uvs to valid sub texel range (avoid zenith derivative issue making LUT usage visible)
         uv = float2(fromSubUvsToUnit(uv.x, SKYVIEW_TEXTURE_WIDTH), fromSubUvsToUnit(uv.y, SKYVIEW_TEXTURE_HEIGHT));
 
-        float Vhorizon = SafeSqrt(viewHeight * viewHeight - Atmosphere.bottom_radius * Atmosphere.bottom_radius);
+        float Vhorizon = safeSqrt(viewHeight * viewHeight - Atmosphere.bottom_radius * Atmosphere.bottom_radius);
         float CosBeta = Vhorizon / viewHeight;				// GroundToHorizonCos
         float Beta = acos(CosBeta);
         float ZenithHorizonAngle = UNITY_PI - Beta;
 
-        if (uv.y < 0.5f)
+        if (uv.y > 0.5f)
         {
-            float coord = 2.0*uv.y;
+            float coord = 2.0*(1 - uv.y);
             coord = 1.0 - coord;
             #if NONLINEARSKYVIEWLUT
                 coord *= coord;
@@ -171,7 +171,7 @@ float fromSubUvsToUnit(float u, float resolution) { return (u - 0.5f / resolutio
         }
         else
         {
-            float coord = uv.y*2.0 - 1.0;
+            float coord = (1 - uv.y)*2.0 - 1.0;
             #if NONLINEARSKYVIEWLUT
                 coord *= coord;
             #endif
@@ -185,7 +185,7 @@ float fromSubUvsToUnit(float u, float resolution) { return (u - 0.5f / resolutio
 
     void SkyViewLutParamsToUv(AtmosphereParameters Atmosphere, in bool IntersectGround, in float viewZenithCosAngle, in float lightViewCosAngle, in float viewHeight, out float2 uv)
     {
-        float Vhorizon = SafeSqrt(viewHeight * viewHeight - Atmosphere.bottom_radius * Atmosphere.bottom_radius);
+        float Vhorizon = safeSqrt(viewHeight * viewHeight - Atmosphere.bottom_radius * Atmosphere.bottom_radius);
         float CosBeta = Vhorizon / viewHeight;				// GroundToHorizonCos
         float Beta = acos(CosBeta);
         float ZenithHorizonAngle = UNITY_PI - Beta;
@@ -195,23 +195,23 @@ float fromSubUvsToUnit(float u, float resolution) { return (u - 0.5f / resolutio
             float coord = acos(viewZenithCosAngle) / ZenithHorizonAngle;
             coord = 1.0 - coord;
             #if NONLINEARSKYVIEWLUT
-                coord = SafeSqrt(coord);
+                coord = safeSqrt(coord);
             #endif
             coord = 1.0 - coord;
-            uv.y = coord * 0.5f;
+            uv.y = 1 - coord * 0.5f;
         }
         else
         {
             float coord = (acos(viewZenithCosAngle) - ZenithHorizonAngle) / Beta;
             #if NONLINEARSKYVIEWLUT
-                coord = SafeSqrt(coord);
+                coord = safeSqrt(coord);
             #endif
-            uv.y = coord * 0.5f + 0.5f;
+            uv.y = 0.5f - coord * 0.5f;
         }
 
         {
             float coord = lightViewCosAngle * 0.5f + 0.5f;
-            coord = SafeSqrt(coord);
+            coord = safeSqrt(coord);
             uv.x = coord;
         }
 
@@ -237,8 +237,18 @@ float fromSubUvsToUnit(float u, float resolution) { return (u - 0.5f / resolutio
 
 #endif
 
-SamplerState samplerLinearClamp;
+// slice: 0-1
+// return: 0-10km
+float SliceToDistance(float slice)
+{
+    return slice*slice*32;
+}
+float DistanceToSlice(float dist)
+{
+    return safeSqrt(dist/32);
+}
 
+SamplerState samplerLinearClamp;
 
 // implement function
 
@@ -249,7 +259,7 @@ float r, float mu, out float opticalDepthR, out float opticalDepthM, out float o
     // assert(r >= atmosphere.bottom_radius && r <= atmosphere.top_radius);
     // assert(mu >= -1.0 && mu <= 1.0);
     
-    const int SAMPLE_COUNT = 500;
+    const int SAMPLE_COUNT = 32;
     
     float dx = DistanceToTopAtmosphereBoundary(atmosphere, r, mu) / float(SAMPLE_COUNT);
     
@@ -409,7 +419,7 @@ float3 GetMultipleScattering(Texture2D<float4> multiScatteringLut, AtmospherePar
 // singlescattering + multiscattering
 float3 RenderSkyViewLut(AtmosphereParameters atmosphere, sampler2D transmittanceLut, float cameraHight, float2 uv, float3 lightDirection, float4 groundColor, sampler2D multiScatteringLut, float4 multiScatteringLut_Size)
 {
-    const int SAMPLE_COUNT = 512;
+    const int SAMPLE_COUNT = 32;
 
     float3 col = 0;
 
@@ -576,7 +586,7 @@ void GetSingleScattering_ForMultiScattering(AtmosphereParameters atmosphere, Tex
 
 void GetScattering_NoGround(AtmosphereParameters atmosphere, Texture2D<float4> transmittanceLut, float3 camerapos, float3 sunDirection, float3 eyeRay, float ray2voxelLength, Texture2D<float4> multiScatteringLut, float4 multiScatteringLut_Size,  out float3 outtransmittance, out float3 L)
 {
-    const int SAMPLE_COUNT = 512;
+    const int SAMPLE_COUNT = 32;
 
     float3 col = 0;
 
@@ -612,6 +622,10 @@ void GetScattering_NoGround(AtmosphereParameters atmosphere, Texture2D<float4> t
         float d = segmentLength * i;
         float3 samplePosition = camerapos + segmentLength *i * eyeRay; 
         float weight = i == 0 || i == SAMPLE_COUNT ? 0.5 : 1;
+
+        // float4 shadowcooord = TransformWorldToShadowCoord(samplePosition);
+        // float shadow = MainLightRealtimeShadow(shadowcooord);
+        // weight *= shadow;
 
         float height = length(samplePosition) - atmosphere.bottom_radius; 
 

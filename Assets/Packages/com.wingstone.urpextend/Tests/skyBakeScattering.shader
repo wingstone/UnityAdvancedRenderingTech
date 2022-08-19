@@ -28,6 +28,7 @@
             #define SKYVIEW_TEXTURE_HEIGHT _SkyViewLut_TexelSize.w
 
             #include "UnityCG.cginc"
+            #include "UnityLightingCommon.cginc"
             #include "Assets/Packages/com.wingstone.urpextend/Editor/Scattering/function.cginc"
 
             struct appdata
@@ -61,7 +62,7 @@
                 //---atmosphere setting
 
                 // 所有距离以km为单位进行推导
-                atmosphere.solar_irradiance = 20;
+                atmosphere.solar_irradiance = _LightColor0.rgb*3.1415926;
                 atmosphere.sun_angular_radius = 1;
                 
                 atmosphere.bottom_radius = 6360;
