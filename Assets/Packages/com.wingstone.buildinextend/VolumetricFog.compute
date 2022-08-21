@@ -1,0 +1,93 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel injectInscattering
+#pragma kernel accomuScattering
+
+Texture2D<float4> _ShadowMap;
+RWTexture3D<float4> _InjectRT;
+RWTexture3D<float4> _ScatteringRT;
+
+// SamplerState sampler_ShadowMap;
+SamplerState samplerPointClamp;
+
+float3 _LightDirection;
+float3 _VolumeResolution;
+float3 _CameraPos;
+float3 _lightRadiance;
+float _Anisotropy;
+float _SeaLevelScattering;
+float _ScaleHeight;
+float4x4 _InverseViewProj;
+
+float3 _RayCenter;
+float3 _RayOffsetX;
+float3 _RayOffsetY;
+
+float SliceToDistance(float slice)
+{
+    return (slice+0.5)*(1/_VolumeResolution.z) * 100;
+}
+
+float StepLength()
+{
+    return 1/_VolumeResolution.z * 100;
+}
+
+#include "UnityCG.cginc"
+
+float PhaseFunction(float costheta)
+{
+	return 1/(4*UNITY_PI);
+}
+
+[numthreads(8,8,1)]
+void injectInscattering (uint3 id : SV_DispatchThreadID)
+{
+    float2 uv = (id.xy + 0.5)/_VolumeResolution.xy*2-1;
+    float3 worldDir = _RayCenter + _RayOffsetX*uv.x + _RayOffsetY*uv.y;
+
+    float3 worldPos = _CameraPos + worldDir * SliceToDistance(id.z);
+
+    float4 shadowCoord = mul( unity_WorldToShadow[0], float4(worldPos, 1));
+    float shadow = _ShadowMap.SampleLevel(samplerPointClamp, shadowCoord.xy, 0).r < shadowCoord.z+0.001;
+
+    float3 col = _lightRadiance*3.1415926;
+    float extenction = 1;
+    float scattering = 1;
+    float stepLength = StepLength();
+
+    // // 由于没有上边界，暂时不考虑当前点在光源方向上的scattering与absorption
+    // for(int i = 0; i < 16; i++)
+    // {
+    // }
+
+    float cosTheta = dot(worldDir, _LightDirection);
+    extenction = _SeaLevelScattering*exp(-(worldPos.y-5)/_ScaleHeight);
+    scattering = extenction;
+    col *= shadow * PhaseFunction(cosTheta) * scattering * stepLength;
+
+    // col = (shadow);
+    // col = SliceToDistance(id.z);
+    _InjectRT[id] = float4(col, extenction);
+}
+
+[numthreads(8,8,1)]
+void accomuScattering (uint3 id : SV_DispatchThreadID)
+{
+    float3 col = 0;
+    float stepLength = StepLength();
+    float transmittance = 1;
+    
+    for(int i = 0; i <= id.z; i++)
+    {
+        int3 index = int3(id.xy, i);
+        float3 inscattering = _InjectRT[index].rgb;
+        float extenction = _InjectRT[index].a;
+        float sliceTransmittance = exp(-extenction * stepLength);
+        float3 sliceInscatteringInteg = inscattering*(1-sliceTransmittance)/extenction;
+        col += sliceInscatteringInteg * transmittance;
+        transmittance *= sliceTransmittance;
+    }
+
+    _ScatteringRT[id] = float4(col, transmittance);
+    // _ScatteringRT[id] = _InjectRT[id];
+}
