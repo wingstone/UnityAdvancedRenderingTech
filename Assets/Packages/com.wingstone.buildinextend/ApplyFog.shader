@@ -43,7 +43,6 @@ Shader "ARP/ApplyFog"
             float3 _VolumeResolution;
             UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
             float4x4 _InverseViewProj;
-            float4 _Screen_TexelSize;
             
             float3 _RayCenter;
             float3 _RayOffsetX;
@@ -70,7 +69,12 @@ Shader "ARP/ApplyFog"
                 int i = p.y*256 + p.x;
                 return float2(frand(i), frand(i + 57)) - 0.5;//*2.0-1.0;
             }
-
+            
+            float2 hash( float2 p ) // replace this by something better
+            {
+                p = float2( dot(p,float2(127.1,311.7)), dot(p,float2(269.5,183.3)) );
+                return -0.5 + frac(sin(p)*43758.5453123 + _Time.y);
+            }
 
             float4 frag (v2f i) : SV_Target
             {
@@ -85,12 +89,12 @@ Shader "ARP/ApplyFog"
                 float w = DistanceToW(distance(worldPos, _CameraPos)/length(worldDir));
 
                 float3 uvw = float3(i.uv, w);
-	            uvw.xy += cellNoise(i.uv * _Screen_TexelSize.zw) / _VolumeResolution.xy;
+	            uvw.xy += hash(i.uv * _ScreenParams.zw) / _VolumeResolution.xy;
                 float4 col = tex3D(_ScatteringRT, uvw);
 
                 // col = float4(col.rgb, 0);
                 // col = float4(col.w,col.w,col.w, 0);
-                // col = float4(cellNoise(i.uv * _Screen_TexelSize.zw), 0, 0);
+                // col = float4(hash(i.uv * _ScreenParams.zw), 0, 0);
                 return col;
             }
             ENDCG

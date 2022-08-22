@@ -22,6 +22,11 @@ float3 _RayCenter;
 float3 _RayOffsetX;
 float3 _RayOffsetY;
 
+float4 _PointPosition;
+float4 _PointColor;
+
+float _PhaseG;
+
 float SliceToDistance(float slice)
 {
     return (slice+0.5)*(1/_VolumeResolution.z) * 100;
@@ -34,10 +39,33 @@ float StepLength()
 
 #include "UnityCG.cginc"
 
-float PhaseFunction(float costheta)
+float PhaseFunctionUniform(float costheta)
 {
 	return 1/(4*UNITY_PI);
 }
+inline float PhaseFunctionHG(float cosTheta) {
+    float g = _PhaseG;
+    float denom = max(1e-5, 1 + g * g + 2 * g * cosTheta);
+    return 1/(4*UNITY_PI) * (1 - g * g) / (denom * sqrt(denom));
+}
+
+int ihash(int n)
+{
+    n = (n<<13)^n;
+    return (n*(n*n*15731+789221)+1376312589) & 2147483647;
+}
+
+float frand(int n)
+{
+    return ihash(n) / 2147483647.0;
+}
+
+float2 cellNoise(int2 p)
+{
+    int i = p.y*256 + p.x;
+    return float2(frand(i), frand(i + 57)) - 0.5;//*2.0-1.0;
+}
+
 
 [numthreads(8,8,1)]
 void injectInscattering (uint3 id : SV_DispatchThreadID)
@@ -46,11 +74,12 @@ void injectInscattering (uint3 id : SV_DispatchThreadID)
     float3 worldDir = _RayCenter + _RayOffsetX*uv.x + _RayOffsetY*uv.y;
 
     float3 worldPos = _CameraPos + worldDir * SliceToDistance(id.z);
+    worldDir = normalize(worldDir);
 
     float4 shadowCoord = mul( unity_WorldToShadow[0], float4(worldPos, 1));
     float shadow = _ShadowMap.SampleLevel(samplerPointClamp, shadowCoord.xy, 0).r < shadowCoord.z+0.001;
 
-    float3 col = _lightRadiance*3.1415926;
+    float3 col = 0;
     float extenction = 1;
     float scattering = 1;
     float stepLength = StepLength();
@@ -60,10 +89,20 @@ void injectInscattering (uint3 id : SV_DispatchThreadID)
     // {
     // }
 
+    // direciton light
+    float3 dirLight = _lightRadiance*3.1415926;
     float cosTheta = dot(worldDir, _LightDirection);
     extenction = _SeaLevelScattering*exp(-(worldPos.y-5)/_ScaleHeight);
     scattering = extenction;
-    col *= shadow * PhaseFunction(cosTheta) * scattering * stepLength;
+    col += dirLight* shadow * PhaseFunctionHG(cosTheta) * scattering * stepLength;
+
+    // point light
+    float3 world2point = _PointPosition.xyz - worldPos;
+    float len = length(world2point);
+    float3 lightDir = world2point/len;
+    float3 pointLight = _PointColor.rgb / (len*len);
+    cosTheta = dot(worldDir, lightDir);
+    col += pointLight * PhaseFunctionHG(cosTheta) * scattering * stepLength;
 
     // col = (shadow);
     // col = SliceToDistance(id.z);
