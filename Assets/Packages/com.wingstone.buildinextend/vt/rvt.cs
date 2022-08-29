@@ -5,7 +5,7 @@ using UnityEngine.Rendering;
 
 public class rvt : MonoBehaviour
 {
-
+    public Transform camTrans;
     public Texture2D colorTex0;
     public Texture2D colorTex1;
     public Texture2D colorTex2;
@@ -16,7 +16,7 @@ public class rvt : MonoBehaviour
 
     public RenderTexture _physicalTexture;
     Texture2D _pageTable;
-    Material bakeMat;
+    public Material bakeMat;
     Material shadingMat;
     int activePageCount;
     bool[,] physicalPageFlags = null;
@@ -30,7 +30,7 @@ public class rvt : MonoBehaviour
     void Start()
     {
         _physicalTexture = new RenderTexture(physicalResolution, physicalResolution, 0, RenderTextureFormat.ARGB32);
-        _pageTable = new Texture2D(32, 32, TextureFormat.RGBA32, true);
+        _pageTable = new Texture2D(32, 32, TextureFormat.RGBAFloat, true, true);    //8bit只能代表256个索引
         _pageTable.wrapMode = TextureWrapMode.Clamp;
         _pageTable.filterMode = FilterMode.Point;
         for (int i = 0; i < _pageTable.mipmapCount; i++)
@@ -44,7 +44,7 @@ public class rvt : MonoBehaviour
                 }
             }
         }
-        _pageTable.Apply();
+        _pageTable.Apply(false);
 
         bakeMat = new Material(bakeShader);
         bakeMat.hideFlags = HideFlags.HideAndDontSave;
@@ -70,11 +70,15 @@ public class rvt : MonoBehaviour
     void Update()
     {
         UpdatePageTable();
-        
-        Vector3 camPos = transform.position;
-        Vector2 camUV = new Vector2((camPos.x + (float)(terrainResolution >> 1)) / terrainResolution, (camPos.y + (float)(terrainResolution >> 1)) / terrainResolution);
+
+        Vector3 camPos = camTrans.position;
+        Vector2 camUV = new Vector2((camPos.x + 8192 * 0.5f) / 8192, (camPos.z + 8192 * 0.5f) / 8192);
+        Vector2 pageIndex = camUV * vtResolution / pageResolution;
+        Vector2Int cameraPage = new Vector2Int((int)(pageIndex.x), (int)(pageIndex.x));
         shadingMat.SetVector("_CameraUV", camUV);
-        shadingMat.SetTexture("_MainTex", _physicalTexture);
+        shadingMat.SetVector("_CameraPage", new Vector4(cameraPage.x, cameraPage.y));
+        shadingMat.SetTexture("_PhysicalTex", _physicalTexture);
+        shadingMat.SetTexture("_PageTable", _pageTable);
     }
 
     private void OnDestroy()
@@ -85,18 +89,28 @@ public class rvt : MonoBehaviour
     }
 
     // return mips and page index
-    Vector2Int[] FeedBack()
+    List<List<Vector2Int>> FeedBack()
     {
-        Vector3 camPos = transform.position;
-        Vector2 uv = new Vector2((camPos.x + (float)(terrainResolution >> 1)) / terrainResolution, (camPos.y + (float)(terrainResolution >> 1)) / terrainResolution);
+        Vector3 camPos = camTrans.position;
+        Vector2 uv = new Vector2((camPos.x + 8192 * 0.5f) / 8192, (camPos.z + 8192 * 0.5f) / 8192);
 
-        Vector2Int[] pageIndices = new Vector2Int[_pageTable.mipmapCount];
+        List<List<Vector2Int>> pageIndices = new List<List<Vector2Int>>();
 
         for (int i = 0; i < _pageTable.mipmapCount; i++)
         {
+            pageIndices.Add(new List<Vector2Int>());
             int mipResolution = vtResolution >> i;
             Vector2 pageIndex = uv * mipResolution / pageResolution;
-            pageIndices[i] = new Vector2Int((int)(pageIndex.x + 0.5), (int)(pageIndex.x + 0.5));
+
+            // 3x3更新区域
+            int pageLen = mipResolution / pageResolution;
+            for (int m = Mathf.Max(0, (int)pageIndex.x - 1); m <= Mathf.Min(pageLen-1, (int)pageIndex.x + 1); m++)
+            {
+                for (int n = Mathf.Max(0, (int)pageIndex.y - 1); n <= Mathf.Min(pageLen-1, (int)pageIndex.y + 1); n++)
+                {
+                    pageIndices[i].Add(new Vector2Int(m, n));
+                }
+            }
         }
 
         return pageIndices;
@@ -135,14 +149,17 @@ public class rvt : MonoBehaviour
     {
         // get needed page
         int needAddPage = 0;
-        Vector2Int[] visiablePages = FeedBack();
-        for (int i = 0; i < visiablePages.Length; i++)
+        List<List<Vector2Int>> visiablePages = FeedBack();
+        for (int i = 0; i < visiablePages.Count; i++)
         {
             int mip = i;
-            Color pageValue = _pageTable.GetPixel(visiablePages[i].x, visiablePages[i].y, mip);
-            if (pageValue.a < 0.5)
+            for (int k = 0; k < visiablePages[i].Count; k++)
             {
-                needAddPage++;
+                Color pageValue = _pageTable.GetPixel(visiablePages[i][k].x, visiablePages[i][k].y, mip);
+                if (pageValue.a < 0.5)
+                {
+                    needAddPage++;
+                }
             }
         }
 
@@ -154,20 +171,24 @@ public class rvt : MonoBehaviour
             {
                 int mip = i;
                 int resolution = pageResolution >> i;
-                for (int m = 0; m < resolution; m++)
+                for (int k = 0; k < visiablePages[i].Count; k++)
                 {
-                    for (int n = 0; n < resolution; n++)
+                    for (int m = 0; m < resolution; m++)
                     {
-                        if (m != visiablePages[i].x && n != visiablePages[i].y)
+                        for (int n = 0; n < resolution; n++)
                         {
-                            Color pagePixel = _pageTable.GetPixel(m, n, i);
-                            if (pagePixel.a > 0.5)
+                            if (!visiablePages[i].Contains(new Vector2Int(m,n)))
                             {
-                                _pageTable.SetPixel(m, n, new Color(0, 0, 0, 0), i);
-                                totalPages--;
-                                int pageX = (int)(pagePixel.r * 8 + 0.5f);
-                                int pageY = (int)(pagePixel.g * 8 + 0.5f);
-                                physicalPageFlags[pageX, pageY] = false;
+                                Color pagePixel = _pageTable.GetPixel(m, n, i);
+                                if (pagePixel.a > 0.5)
+                                {
+                                    _pageTable.SetPixel(m, n, new Color(0, 0, 0, 0), i);
+                                    totalPages--;
+                                    int pageX = (int)(pagePixel.r * 8 + 0.5f);
+                                    int pageY = (int)(pagePixel.g * 8 + 0.5f);
+                                    physicalPageFlags[pageX, pageY] = false;
+                                    activePageCount--;
+                                }
                             }
                         }
                     }
@@ -176,6 +197,7 @@ public class rvt : MonoBehaviour
                 if (totalPages < maxPages)
                     break;
             }
+            _pageTable.Apply(false);
         }
 
         // prepare physical pages
@@ -190,31 +212,43 @@ public class rvt : MonoBehaviour
                 }
             }
         }
+        if(needAddPage > 0)
+        {
+            int a = 0;
+        }
 
         // render needed pages
         CommandBuffer cmd = new CommandBuffer();
-        for (int i = 0; i < visiablePages.Length; i++)
+        for (int i = 0; i < visiablePages.Count; i++)
         {
             int mip = i;
-            Color pageValue = _pageTable.GetPixel(visiablePages[i].x, visiablePages[i].y, mip);
-            if (pageValue.a < 0.5)
+            for (int k = 0; k < visiablePages[i].Count; k++)
             {
-                // update page table
-                Vector2Int page = phyCanUsePages.Peek();
-                _pageTable.SetPixel(visiablePages[i].x, visiablePages[i].y, new Color(page.x / 8f, page.y / 8f, 0, 1f), mip);
+                Color pageValue = _pageTable.GetPixel(visiablePages[i][k].x, visiablePages[i][k].y, mip);
+                if (pageValue.a < 0.5)
+                {
+                    // update page table
+                    Vector2Int page = phyCanUsePages.Peek();
+                    _pageTable.SetPixel(visiablePages[i][k].x, visiablePages[i][k].y, new Color((float)(page.x) / 8f, (float)(page.y) / 8f, 0, 1f), mip);
+                    phyCanUsePages.Pop();
+                    physicalPageFlags[page.x, page.y] = true;
 
-                // update physical texture
-                cmd.Clear();
-                cmd.SetRenderTarget(_physicalTexture);
-                cmd.SetViewport(new Rect(page.x * pageResolution, page.y * pageResolution, pageResolution, pageResolution));
-                float scale = 1 << mip;
-                Vector4 scaleOffset = new Vector4(1, 1, visiablePages[i].x * pageResolution, visiablePages[i].y * pageResolution) * scale;
-                bakeMat.SetVector("_UVScaleOffset", scaleOffset);
-                cmd.DrawMesh(pageQuad, Matrix4x4.identity, bakeMat, 0);
-                Graphics.ExecuteCommandBuffer(cmd);
-                needAddPage--;
+                    // update physical texture
+                    cmd.Clear();
+                    cmd.SetRenderTarget(_physicalTexture);
+                    cmd.SetViewport(new Rect(page.x * pageResolution, page.y * pageResolution, pageResolution, pageResolution));
+                    cmd.SetViewProjectionMatrices(Matrix4x4.identity, Matrix4x4.identity);
+                    cmd.ClearRenderTarget(true, true, Color.yellow);
+                    float scale = 1f / (32 >> mip);
+                    Vector4 scaleOffset = new Vector4(1, 1, visiablePages[i][k].x, visiablePages[i][k].y) * scale;
+                    bakeMat.SetVector("_UVScaleOffset", scaleOffset);
+                    cmd.DrawMesh(pageQuad, Matrix4x4.identity, bakeMat, 0);
+                    Graphics.ExecuteCommandBuffer(cmd);
+                    activePageCount++;
+                }
             }
         }
+        _pageTable.Apply(false);
         cmd.Release();
     }
 }

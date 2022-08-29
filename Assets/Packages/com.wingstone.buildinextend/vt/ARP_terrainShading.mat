@@ -24,7 +24,19 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _PageTable:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _PhysicalTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
-    m_Floats: []
-    m_Colors: []
+    m_Floats:
+    - _CameraPageX: 0
+    - _CameraPageY: 0
+    m_Colors:
+    - _CameraPage: {r: 14, g: 14, b: 0, a: 0}
+    - _CameraUV: {r: 0.4407959, g: 0.484375, b: 0, a: 0}
   m_BuildTextureStacks: []

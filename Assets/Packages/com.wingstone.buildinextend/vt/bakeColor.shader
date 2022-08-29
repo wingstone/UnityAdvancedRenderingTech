@@ -14,6 +14,7 @@ Shader "ARP/bakeColor"
     {
         Pass
         {
+            Cull Off
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -45,7 +46,9 @@ Shader "ARP/bakeColor"
             v2f vert (appdata v)
             {
                 v2f o;
+                // o.vertex = float4(v.vertex.xy, 0, 1);
                 o.vertex = UnityObjectToClipPos(v.vertex);
+                v.uv = v.uv*256.0f/254.0f - 1.0f/254.0f;
                 v.uv = v.uv*_UVScaleOffset.xy + _UVScaleOffset.zw;
                 o.uv0 = v.uv;
                 o.uv1.xy = v.uv*_Tiling.x;
@@ -67,6 +70,7 @@ Shader "ARP/bakeColor"
                 float4 col = col0*weights.x + col1*weights.y + col2*weights.z + col3*weights.w;
 
                 col.w = 1;
+                // col = float4(i.uv0, 0, 1);
                 return col;
             }
             ENDCG
