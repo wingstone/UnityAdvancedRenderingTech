@@ -61,7 +61,12 @@
         Pass
         {
             Name "Edge Detection"
-            
+            Stencil {
+                Ref 1
+                Comp always
+                Pass replace
+            }
+
             CGPROGRAM
 
             #pragma vertex vertEdge
@@ -108,16 +113,22 @@
         Pass
         {
             Name "Blend Weight"
+            Stencil {
+                Ref 1
+                Comp Equal
+            }
             
             CGPROGRAM
 
             #pragma vertex vertBlend
             #pragma fragment fragBlend
-            
+             
             sampler2D _MainTex;
             float4 _MainTex_TexelSize;
             sampler2D _AreaTex;
             sampler2D _SearchTex;
+            int _JitterIndex;
+            int _UseT2X;
 
             #include "SMAA.hlsl"
             #include "Common.cginc"
@@ -147,7 +158,62 @@
             half4 fragBlend(VaryingsBlendWeight i) : SV_Target0
             {
                 half4 color = 0;
-                color = SMAABlendingWeightCalculationPS(i.texcoord, i.pixcoord, i.offset, _MainTex, _AreaTex, _SearchTex, 0);
+                float4 subsampleIndices = _JitterIndex == 0 ? float4(1, 1, 1, 0) : float4(2, 2, 2, 0);
+                subsampleIndices = _UseT2X == 0 ? 0 : subsampleIndices;
+                color = SMAABlendingWeightCalculationPS(i.texcoord, i.pixcoord, i.offset, _MainTex, _AreaTex, _SearchTex, subsampleIndices);
+                return color;
+            }
+            
+            ENDCG
+        }
+
+        Pass
+        {
+            Name "Blend"
+            
+            CGPROGRAM
+
+            #pragma multi_compile _ SMAA_REPROJECTION
+            #pragma vertex vertBlend
+            #pragma fragment fragBlend
+            
+            sampler2D _MainTex;
+            float4 _MainTex_TexelSize;
+            sampler2D _BlendWeightTex;
+            sampler2D _CameraMotionVectorsTexture;
+
+            #include "SMAA.hlsl"
+            #include "Common.cginc"
+
+            struct VaryingsBlend
+            {
+                float4 vertex : SV_POSITION;
+                float2 texcoord : TEXCOORD0;
+                float4 offset : TEXCOORD1;
+            };
+
+            VaryingsBlend vertBlend(AttributesDefault v)
+            {
+                VaryingsBlend o;
+                o.vertex = float4(v.vertex.xy, 0.0, 1.0);
+                o.texcoord = TransformTriangleVertexToUV(v.vertex.xy);
+
+                #if UNITY_UV_STARTS_AT_TOP
+                    o.texcoord = o.texcoord * float2(1.0, -1.0) + float2(0.0, 1.0);
+                #endif
+
+                SMAANeighborhoodBlendingVS(o.texcoord, o.offset);
+                return o;
+            }
+
+            half4 fragBlend(VaryingsBlend i) : SV_Target0
+            {
+                half4 color = 0;
+                color = SMAANeighborhoodBlendingPS(i.texcoord, i.offset, _MainTex, _BlendWeightTex
+                #if SMAA_REPROJECTION
+                    , _CameraMotionVectorsTexture
+                #endif
+                );
                 return color;
             }
             
@@ -160,12 +226,14 @@
             
             CGPROGRAM
 
+            #pragma multi_compile _ SMAA_REPROJECTION
             #pragma vertex vertResolve
             #pragma fragment fragResolve
             
             sampler2D _MainTex;
             float4 _MainTex_TexelSize;
-            sampler2D _BlendWeightTex;
+            sampler2D _PreviousTex;
+            sampler2D _CameraMotionVectorsTexture;
 
             #include "SMAA.hlsl"
             #include "Common.cginc"
@@ -190,11 +258,15 @@
                 SMAANeighborhoodBlendingVS(o.texcoord, o.offset);
                 return o;
             }
-
+            
             half4 fragResolve(VaryingsResolve i) : SV_Target0
             {
                 half4 color = 0;
-                color = SMAANeighborhoodBlendingPS(i.texcoord, i.offset, _MainTex, _BlendWeightTex);
+                color = SMAAResolvePS(i.texcoord, _MainTex, _PreviousTex
+                #if SMAA_REPROJECTION
+                    , _CameraMotionVectorsTexture
+                #endif    
+                );
                 return color;
             }
             
