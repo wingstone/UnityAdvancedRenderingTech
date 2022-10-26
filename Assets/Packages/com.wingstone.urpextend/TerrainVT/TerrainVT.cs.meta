@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: a5f7e575c4cdfc447b42aa398d9f6ded
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - cam: {instanceID: 0}
+  - shadingMat: {fileID: 2100000, guid: dc71f1a17c9e20d4487bd3135141c649, type: 2}
+  - bakeShader: {fileID: 4800000, guid: 6d30f8ece85ad024787a2bca4b699f38, type: 3}
+  - _physicalAlbedoTexture: {instanceID: 0}
+  - _physicalNormalTexture: {instanceID: 0}
+  - _pageTable: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
