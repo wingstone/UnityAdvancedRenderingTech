@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Experimental.Rendering;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -15,6 +16,8 @@ namespace URPExtend
         //---Control Parameters
         const int pageResolution = 256;
         public Camera cam;
+        public ComputeShader compressCompute;
+        public bool useRuntimeCompress;
         public TerrainVTResolution VTResolution = TerrainVTResolution._65536;
         public TerrainVTPhysicalResolution VTPhysicalResolution = TerrainVTPhysicalResolution._2048;
         int vtResolution = 65536;  // 256x256 page
@@ -58,6 +61,8 @@ namespace URPExtend
         Material oldMat;
         int _activePageCount;
         bool[,] _physicalPageFlags = null;
+        RenderTexture compressRT = null;
+
 
         //--- tools
 
@@ -76,7 +81,7 @@ namespace URPExtend
         }
 
         public enum TerrainVTResolution
-        {           
+        {
             _4096,
             _8192,
             _16384,
@@ -144,10 +149,10 @@ namespace URPExtend
         {
             physicalResolution = (2 + ((int)VTPhysicalResolution)) * 1024;
             physicalPageResolution = physicalResolution / pageResolution;
-            
-            vtResolution = 4096<<(int)VTResolution;
-            virtualPageResolution = vtResolution/256;
-            vtMips = (int)(Mathf.Log(virtualPageResolution, 2) +0.5);
+
+            vtResolution = 4096 << (int)VTResolution;
+            virtualPageResolution = vtResolution / 256;
+            vtMips = (int)(Mathf.Log(virtualPageResolution, 2) + 0.5);
         }
 
         void InitialBakeMat()
@@ -155,6 +160,37 @@ namespace URPExtend
             bakeMat = new Material(bakeShader);
             bakeMat.hideFlags = HideFlags.HideAndDontSave;
             bakeMat.SetFloat("_PageResolution", pageResolution);
+        }
+
+        void initialRuntimeCompress()
+        {
+            compressRT = new RenderTexture(physicalResolution, physicalResolution, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear)
+            {
+                enableRandomWrite = true,
+            };
+            _physicalNormalTexture.Create();
+            _physicalNormalTexture.hideFlags = HideFlags.HideAndDontSave;
+            _physicalNormalTexture.name = "compressRT";
+
+            GraphicsFormat format;
+#if UNITY_ANDROID && !UNITY_EDITOR
+                format = GraphicsFormat.RGBA_ETC2_UNorm;
+                compressCompute.DisableKeyword("_COMPRESS_BC3");
+                compressCompute.EnableKeyword("_COMPRESS_ETC2");
+#else
+            format = GraphicsFormat.RGBA_DXT5_UNorm;
+            compressCompute.DisableKeyword("_COMPRESS_ETC2");
+            compressCompute.EnableKeyword("_COMPRESS_BC3");
+#endif
+
+            _compressAlbedoTexture = new Texture2D(physicalResolution, physicalResolution, format, TextureCreationFlags.None);
+            _compressAlbedoTexture.name = "vt Compress Albebo";
+            _compressAlbedoTexture.hideFlags = HideFlags.HideAndDontSave;
+
+            _compressNormalTexture = new Texture2D(physicalResolution, physicalResolution, format, TextureCreationFlags.None);
+            _compressNormalTexture.name = "vt Compress Normal";
+            _compressNormalTexture.hideFlags = HideFlags.HideAndDontSave;
+
         }
 
         void InitialVirtualTexture()
@@ -169,13 +205,8 @@ namespace URPExtend
             _physicalNormalTexture.hideFlags = HideFlags.HideAndDontSave;
             _physicalNormalTexture.name = "vt Physical Normal";
 
-            // _compressAlbedoTexture = new Texture2D(physicalResolution, physicalResolution, TextureFormat.ASTC_6x6, false);
-            // _compressAlbedoTexture.name = "vt Compress Albebo";
-            // _compressAlbedoTexture.hideFlags = HideFlags.HideAndDontSave;
-
-            // _compressNormalTexture = new Texture2D(physicalResolution, physicalResolution, TextureFormat.ASTC_6x6, false);
-            // _compressNormalTexture.name = "vt Compress Normal";
-            // _compressNormalTexture.hideFlags = HideFlags.HideAndDontSave;
+            if (useRuntimeCompress)
+                initialRuntimeCompress();
 
             // todo: 8bit只能代表256个索引, 但是可以不存坐标，而存index来解决；
             // todo: 但是目前C#层没有raw byte的操作函数，只能搁置
@@ -237,9 +268,9 @@ namespace URPExtend
                 bakeMat.SetTexture("_LayerNormalTex" + i, terrainLayers[layerIndex].normalMapTexture);
                 bakeMat.SetTexture("_LayerMaskTex" + i, terrainLayers[layerIndex].maskMapTexture);
                 bakeMat.SetVector("_Layer_ST" + i, GetTilingFromTileSizeOffset(terrainLayers[layerIndex].tileSize, terrainLayers[layerIndex].tileOffset));
-                bakeMat.SetVector("_LayerColorTint"+i, terrainLayers[layerIndex].diffuseRemapMax);
-                bakeMat.SetVector("_Layer_RemapMin"+i, terrainLayers[i].maskMapRemapMin);
-                bakeMat.SetVector("_Layer_RemapMax"+i, terrainLayers[i].maskMapRemapMax);
+                bakeMat.SetVector("_LayerColorTint" + i, terrainLayers[layerIndex].diffuseRemapMax);
+                bakeMat.SetVector("_Layer_RemapMin" + i, terrainLayers[i].maskMapRemapMin);
+                bakeMat.SetVector("_Layer_RemapMax" + i, terrainLayers[i].maskMapRemapMax);
                 normalScales[i] = terrainLayers[layerIndex].normalScale;
             }
             bakeMat.SetTexture("_WeightMask", alphaTextures[weightMaskID]);
@@ -257,11 +288,18 @@ namespace URPExtend
             shadingMat.SetVector("_CameraUV", camUV);
             shadingMat.SetVector("_CameraPage", new Vector4(cameraPage.x, cameraPage.y));
             shadingMat.SetInt("_MipStepPageCount", mipStepPageCount);
-            shadingMat.SetTexture("_PhysicalAlbedoTex", _physicalAlbedoTexture);
-            shadingMat.SetTexture("_PhysicalNormalTex", _physicalNormalTexture);
-            //! todo compress physical texture
-            // shadingMat.SetTexture("_PhysicalAlbedoTex", _compressAlbedoTexture);
-            // shadingMat.SetTexture("_PhysicalNormalTex", _compressAlbedoTexture);
+
+            if (useRuntimeCompress)
+            {
+                shadingMat.SetTexture("_PhysicalAlbedoTex", _compressAlbedoTexture);
+                shadingMat.SetTexture("_PhysicalNormalTex", _compressNormalTexture);
+            }
+            else
+            {
+                shadingMat.SetTexture("_PhysicalAlbedoTex", _physicalAlbedoTexture);
+                shadingMat.SetTexture("_PhysicalNormalTex", _physicalNormalTexture);
+            }
+
             shadingMat.SetTexture("_PageTable", _pageTable);
         }
 
@@ -502,6 +540,7 @@ namespace URPExtend
                     }
                 }
             }
+            cmd.Release();
 
             _pageTable.Apply(false);
 
@@ -542,15 +581,22 @@ namespace URPExtend
 
             _pageTable.Apply(false);
 
-            // todo 解决vt压缩问题
-            // cmd.Clear();
-            // cmd.Blit(_physicalAlbedoTexture, _compressAlbedoTexture);
-            // cmd.Blit(_physicalNormalTexture, _compressNormalTexture);
-            // Graphics.ExecuteCommandBuffer(cmd);
-
-            cmd.Release();
-
-
+            if (useRuntimeCompress)
+            {
+                // compress albedo
+                int kernelHandle = compressCompute.FindKernel("CSMain");
+                compressCompute.SetTexture(kernelHandle, "Result", compressRT);
+                compressCompute.SetTexture(kernelHandle, "RenderTexture0", _physicalAlbedoTexture);
+                compressCompute.SetInts("DestRect", new int[4] { 0, 0, physicalResolution, physicalResolution });
+                compressCompute.Dispatch(kernelHandle, physicalResolution / 4 / 8, physicalResolution / 4 / 8, 1);
+                Graphics.CopyTexture(compressRT, 0, 0, 0, 0, physicalResolution / 4, physicalResolution / 4, _compressAlbedoTexture, 0, 0, 0, 0);
+                // compress normal
+                compressCompute.SetTexture(kernelHandle, "Result", compressRT);
+                compressCompute.SetTexture(kernelHandle, "RenderTexture0", _physicalNormalTexture);
+                compressCompute.SetInts("DestRect", new int[4] { 0, 0, physicalResolution, physicalResolution });
+                compressCompute.Dispatch(kernelHandle, physicalResolution / 4 / 8, physicalResolution / 4 / 8, 1);
+                Graphics.CopyTexture(compressRT, 0, 0, 0, 0, physicalResolution / 4, physicalResolution / 4, _compressNormalTexture, 0, 0, 0, 0);
+            }
         }
 
         //--- mono
@@ -605,7 +651,7 @@ namespace URPExtend
             {
                 return;
             }
-            
+
             GameObject.Destroy(_physicalAlbedoTexture);
             GameObject.Destroy(_physicalNormalTexture);
             GameObject.Destroy(_pageTable);

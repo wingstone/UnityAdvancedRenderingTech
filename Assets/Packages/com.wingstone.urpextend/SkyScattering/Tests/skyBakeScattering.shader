@@ -29,7 +29,7 @@
 
             #include "UnityCG.cginc"
             #include "UnityLightingCommon.cginc"
-            #include "Assets/Packages/com.wingstone.urpextend/Editor/Scattering/function.cginc"
+            #include "Assets/Packages/com.wingstone.urpextend/SkyScattering/Editor/Scattering/function.cginc"
 
             struct appdata
             {

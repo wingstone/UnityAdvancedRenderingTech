@@ -48,7 +48,7 @@ Shader "ARP/SkyScattering"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
-            #include "Assets/Packages/com.wingstone.urpextend/Editor/Scattering/function.cginc"
+            #include "Assets/Packages/com.wingstone.urpextend/SkyScattering/Editor/Scattering/function.cginc"
             // #include "UnityCG.cginc"
 
             struct appdata

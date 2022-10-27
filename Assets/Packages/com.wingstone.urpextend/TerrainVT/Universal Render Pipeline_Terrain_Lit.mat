@@ -121,8 +121,8 @@ Material:
     - _MipStepPageCount: 2
     - _NumLayersCount: 1
     - _PageResolution: 256
-    - _PhysicalPageResolution: 12
-    - _PhysicalResolution: 3072
+    - _PhysicalPageResolution: 16
+    - _PhysicalResolution: 4096
     - _Smoothness0: 0.5
     - _Smoothness1: 0.5
     - _Smoothness2: 0.5
@@ -132,6 +132,6 @@ Material:
     - _VTResolution: 65536
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
-    - _CameraPage: {r: 231, g: 28, b: 0, a: 0}
-    - _CameraUV: {r: 0.9042137, g: 0.11083105, b: 0, a: 0}
+    - _CameraPage: {r: 189, g: 64, b: 0, a: 0}
+    - _CameraUV: {r: 0.7395, g: 0.2529, b: 0, a: 0}
   m_BuildTextureStacks: []

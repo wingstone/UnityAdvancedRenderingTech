@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1.2
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 2100000, guid: 31f3c1dbeca8e4d4092c3988e2c37d92, type: 2}
+  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 5839219670521690305}
-  m_IndirectSpecularColor: {r: 0, g: 0, b: 0, a: 1}
+  m_IndirectSpecularColor: {r: 0.1826836, g: 0.22567531, b: 0.29132304, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -97,7 +97,7 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 112000000, guid: 1a3ceb05749b5f54da96feb33b7a54a7,
+  m_LightingDataAsset: {fileID: 112000000, guid: 0c1bdcb44c161504ab2c18b198efac3d,
     type: 2}
   m_LightingSettings: {fileID: 4890085278179872738, guid: 1bc6935f79575fa4c86415547ce66edd,
     type: 2}
@@ -191,7 +191,7 @@ Terrain:
   m_HeightmapMaximumLOD: 0
   m_ShadowCastingMode: 1
   m_DrawHeightmap: 1
-  m_DrawInstanced: 0
+  m_DrawInstanced: 1
   m_DrawTreesAndFoliage: 0
   m_StaticShadowCaster: 0
   m_ReflectionProbeUsage: 0
@@ -236,6 +236,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cam: {fileID: 1788315319}
+  compressCompute: {fileID: 7200000, guid: 0481725df27cb8146986be0271ad2005, type: 3}
+  useRuntimeCompress: 1
   VTResolution: 4
   VTPhysicalResolution: 2
   mipStepPageCount: 2
@@ -346,7 +348,7 @@ Camera:
   m_GameObject: {fileID: 1788315316}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 2
+  m_ClearFlags: 1
   m_BackGroundColor: {r: 0.25111246, g: 0.35999733, b: 0.5377358, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
@@ -402,14 +404,14 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 372996314}
-  m_LocalRotation: {x: 0.06353488, y: -0.92824835, z: 0.18716767, w: 0.3150979}
+  m_LocalRotation: {x: 0.017466517, y: -0.9787282, z: 0.18139659, w: 0.094240874}
   m_LocalPosition: {x: -95.73, y: 483.96, z: 103.06}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 22.8, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 21, y: -169, z: 0}
 --- !u!108 &5839219670521690305
 Light:
   m_ObjectHideFlags: 0
